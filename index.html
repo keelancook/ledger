@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,7 +16,6 @@
         }
         #vp { width: 100%; height: 100vh; position: relative; overflow: hidden; }
         
-        /* Restored Animation Logic */
         .card { 
             width: 100%; height: 100%; position: absolute; top: 0; left: 0; 
             transition: transform 0.4s cubic-bezier(0.2, 1, 0.3, 1); 
@@ -34,10 +34,16 @@
         ul { list-style: none; margin: 0; padding: 0; position: relative; }
         li { 
             height: var(--line); display: flex; align-items: center; 
-            padding: 0 15px; /* Fixed padding to keep handles on screen */
+            padding: 0 15px; 
             position: relative; background: transparent; touch-action: none; box-sizing: border-box; 
         }
         li::after { content: ""; position: absolute; bottom: 0; left: 48px; right: 15px; height: 1px; background-color: var(--rule); }
+        
+        li.dragging { 
+            opacity: 0.8; transform: scale(1.02); 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1); 
+            background: rgba(255,255,255,0.4); z-index: 100; 
+        }
 
         .btn-c { width: 18px; height: 18px; border: 1.2px solid #000; border-radius: 50%; margin-right: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; z-index: 2; background: transparent; }
         .today-list li:nth-child(-n+3) .btn-c { border-color: var(--priority); border-width: 2px; }
@@ -51,8 +57,9 @@
         }
         .done { text-decoration: line-through; color: rgba(0,0,0,0.45); opacity: 0.7; }
 
-        .ctrls { display: flex; align-items: center; gap: 10px; color: rgba(0,0,0,0.3); z-index: 2; flex-shrink: 0; font-family: sans-serif; }
-        .dots, .hndl { padding: 5px; font-size: 18px; cursor: pointer; }
+        .ctrls { display: flex; align-items: center; gap: 8px; color: rgba(0,0,0,0.3); z-index: 2; flex-shrink: 0; font-family: sans-serif; }
+        .dots, .hndl { padding: 5px; font-size: 18px; cursor: pointer; user-select: none; }
+        .hndl { font-size: 20px; }
 
         .fin-btn { padding: 8px 18px; background: #fff; color: #000; border: 1px solid rgba(0,0,0,0.4); border-radius: 6px; font-family: 'Cormorant Garamond', serif; font-weight: 500; font-size: 15px; letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer; }
         
@@ -84,7 +91,7 @@
     <input type="file" id="fileInput" style="display:none" accept=".json">
 
 <script>
-    let cur = 0, sel = null, arcFocus = null;
+    let cur = 0, sel = null, arcFocus = null, dragEl = null;
     const STORAGE_KEY = 'analog_db';
 
     let db = {
@@ -109,8 +116,6 @@
         const views = ['today', 'next', 'someday', 'archive'];
         const v = views[cur];
         const el = document.getElementById('card');
-        
-        // Ensure background color is correct
         el.className = 'card ' + (arcFocus ? 'c-archive' : 'c-' + v);
 
         if(cur === 3 && !arcFocus) {
@@ -135,11 +140,11 @@
         const list = document.getElementById('list');
         const arrowSVG = `<svg class="del-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="12" x2="17" y2="12"></line><polyline points="12 7 17 12 12 17"></polyline></svg>`;
         data.forEach((item, i) => {
-            let li = document.createElement('li');
+            let li = document.createElement('li'); li.dataset.idx = i;
             let icon = item.s==1 ? '<div class="dot-in"></div>' : (item.s==2 ? arrowSVG : '');
             li.innerHTML = `<div class="btn-c" onclick="tgl(${i})">${icon}</div>
                             <input type="text" value="${item.t}" oninput="upd(${i},this.value)" class="${item.s==1?'done':''}">
-                            <div class="ctrls"><span class="dots" onclick="openM(${i})">⋮</span></div>`;
+                            <div class="ctrls"><span class="dots" onclick="openM(${i})">⋮</span><span class="hndl" onpointerdown="startDrag(event, ${i})">⠿</span></div>`;
             list.appendChild(li);
         });
     }
@@ -157,6 +162,30 @@
         save(); 
         if(cur === 0) updateTodayButton(); 
     }
+
+    function startDrag(e, i) { 
+        if(arcFocus) return; 
+        dragEl = e.target.closest('li'); 
+        dragEl.classList.add('dragging');
+        dragEl.setPointerCapture(e.pointerId); 
+    }
+    
+    document.addEventListener('pointermove', e => {
+        if(!dragEl) return;
+        const list = document.getElementById('list');
+        const items = [...list.querySelectorAll('li:not(.dragging)')];
+        let next = items.find(s => e.clientY <= s.getBoundingClientRect().top + s.offsetHeight/2);
+        if (next) list.insertBefore(dragEl, next);
+        else list.appendChild(dragEl);
+    });
+
+    document.addEventListener('pointerup', e => {
+        if(!dragEl) return;
+        dragEl.classList.remove('dragging');
+        let v = ['today','next','someday','archive'][cur];
+        db[v] = [...document.querySelectorAll('#list li')].map(li => db[v][li.dataset.idx]);
+        dragEl = null; save(); render();
+    });
 
     function tgl(i) { if(arcFocus)return; let v=['today','next','someday','archive'][cur]; db[v][i].s=(db[v][i].s+1)%3; save(); render(); }
     function viewArc(i) { arcFocus = { tasks: db.archive[i].tasks, d: db.archive[i].d, idx: i }; render(); }
@@ -200,7 +229,6 @@
     function importData() { document.getElementById('fileInput').click(); }
     document.getElementById('fileInput').onchange = e => { const reader = new FileReader(); reader.onload = ev => { db = JSON.parse(ev.target.result); save(); render(); closeAll(); }; reader.readAsText(e.target.files[0]); };
 
-    // Restore Swipe with Animation logic
     function jump(dir) {
         let el = document.getElementById('card');
         el.style.transform = `translateX(${-dir * 100}%)`;
@@ -220,7 +248,7 @@
     document.addEventListener('touchstart', e => sX = e.touches[0].clientX);
     document.addEventListener('touchend', e => {
         let diff = e.changedTouches[0].clientX - sX;
-        if(Math.abs(diff) > 70) { 
+        if(Math.abs(diff) > 70 && !dragEl) { 
             if(arcFocus){ arcFocus=null; render(); return; } 
             jump(diff > 0 ? -1 : 1); 
         }
