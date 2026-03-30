@@ -48,10 +48,9 @@
         
         .hdr span { font-size: 22px; color: rgba(0,0,0,0.5); text-align: right; padding-top: 2px; }
 
-        /* Dynamic Drop Indicator */
         .drop-indicator {
             height: 1.5px;
-            background: #666; /* Default grey */
+            background: #666;
             margin: 0 15px 0 48px;
             position: absolute;
             width: calc(100% - 63px);
@@ -60,10 +59,7 @@
             z-index: 50;
             opacity: 0.8;
         }
-        .drop-indicator.priority {
-            background: var(--priority);
-            height: 1.2px;
-        }
+        .drop-indicator.priority { background: var(--priority); height: 1.2px; }
 
         li.dragging { 
             opacity: 0.8; 
@@ -88,10 +84,10 @@
         #toast.show { top: 20px; }
         .t-btn { background: #fff; color: #000; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; font-size: 11px; cursor: pointer; text-transform: uppercase; }
 
-        .settings-trigger, .dots, .hndl, .btn-c, .fin-btn, .m-item { transition: opacity 0.1s, transform 0.1s; cursor: pointer; }
-        .settings-trigger:active, .dots:active, .hndl:active, .btn-c:active, .fin-btn:active, .m-item:active { opacity: 0.4; transform: scale(0.96); }
+        .settings-trigger, .dots, .hndl, .btn-c, .fin-btn, .m-item { transition: opacity 0.1s, transform 0.1s; cursor: pointer; outline: none; }
+        .settings-trigger:active, .dots:active, .hndl:active, .btn-c:active, .fin-btn:active, .m-item:active { opacity: 0.4; transform: scale(0.98); }
 
-        .settings-trigger { width: 24px; height: 24px; fill: rgba(0,0,0,0.6); margin-top: 4px; outline: none; }
+        .settings-trigger { width: 24px; height: 24px; fill: rgba(0,0,0,0.6); margin-top: 4px; }
 
         ul { list-style: none; margin: 0; padding: 0; position: relative; }
         li { 
@@ -119,10 +115,10 @@
         .hndl { padding: 4px; font-size: 16px; }
 
         .fin-btn {
-            width: 100%; padding: 14px; background: #fff; color: #000; 
-            border: 1px solid #000; border-radius: 8px; 
-            font-family: 'Cormorant Garamond', serif; font-weight: 500; font-size: 18px; 
-            letter-spacing: 2px; text-transform: uppercase;
+            padding: 8px 18px; background: #fff; color: #000; 
+            border: 1px solid rgba(0,0,0,0.3); border-radius: 6px; 
+            font-family: 'Cormorant Garamond', serif; font-weight: 500; font-size: 15px; 
+            letter-spacing: 1.5px; text-transform: uppercase;
         }
 
         #menu, #settings-menu { 
@@ -163,7 +159,7 @@
     const STORAGE_KEY = 'analog_db';
 
     function migrateData() {
-        const legacyKeys = ['v31', 'v30', 'v29'];
+        const legacyKeys = ['v35', 'v34', 'v33', 'v32', 'v31'];
         legacyKeys.forEach(k => {
             const todayData = localStorage.getItem(k + '_t');
             if (todayData && !localStorage.getItem(STORAGE_KEY + '_t')) {
@@ -225,7 +221,13 @@
         let subtitle = arcFocus ? arcFocus.d : (cur === 0 ? getShortDate(new Date()) : (cur === 1 ? "Priority" : "Ideas"));
 
         el.innerHTML = `<div class="hdr"><b>${title}</b><span>${subtitle}</span></div><ul id="list" class="${cur===0?'today-list':''}"></ul>`;
-        if(cur===0 && !arcFocus) el.innerHTML += `<div style="padding:15px 25px;"><button class="fin-btn" onclick="fin()">FINISH DAY</button></div>`;
+        
+        if(cur===0 && !arcFocus) {
+            const hasTasks = db.today.some(x => x.t.trim() !== "");
+            const btnText = hasTasks ? "Finish Day" : "Review Yesterday";
+            const btnFunc = hasTasks ? "fin()" : "viewLastArc()";
+            el.innerHTML += `<div style="padding:10px 25px; text-align:center;"><button class="fin-btn" onclick="${btnFunc}">${btnText}</button></div>`;
+        }
 
         const list = document.getElementById('list');
         const delSVG = `<svg class="del-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="12" x2="17" y2="12"></line><polyline points="12 7 17 12 12 17"></polyline></svg>`;
@@ -250,11 +252,8 @@
         if(!dragEl) return;
         const list = document.getElementById('list');
         const indicator = document.getElementById('drop-indicator');
-        
-        // Apply color based on view
         if (cur === 0) indicator.classList.add('priority');
         else indicator.classList.remove('priority');
-
         const items = [...list.querySelectorAll('li:not(.dragging)')];
         let next = items.find(s => e.clientY <= s.getBoundingClientRect().top + s.offsetHeight/2);
         indicator.style.display = 'block';
@@ -274,6 +273,11 @@
         dragEl = null; save(); render();
     });
 
+    function viewLastArc() {
+        if(db.archive.length > 0) viewArc(db.archive.length - 1);
+        else alert("No history found.");
+    }
+
     function openM(i) { 
         sel=i; const container = document.getElementById('m-options-container'); container.innerHTML = '';
         const currentView = ['today', 'next', 'someday', 'archive'][cur];
@@ -283,8 +287,8 @@
             container.appendChild(div);
         };
         if(arcFocus) {
-            document.getElementById('m-context-title').innerText = "Restore from Archive";
-            addOption("Restore to Today", "today"); addOption("Restore to Next", "next"); addOption("Restore to Someday", "someday");
+            document.getElementById('m-context-title').innerText = "Review & Migrate";
+            addOption("Migrate to Today", "today"); addOption("Migrate to Next", "next"); addOption("Migrate to Someday", "someday");
         } else {
             document.getElementById('m-context-title').innerText = "Move Task";
             if(currentView !== 'today') addOption("Move to Today", "today");
@@ -297,12 +301,23 @@
 
     function mAct(a) { 
         let src = arcFocus ? arcFocus.tasks : db[['today', 'next', 'someday', 'archive'][cur]];
-        let copy = {...src[sel], s: 0};
-        if (a === 'del') { src[sel] = {t:"", s:0}; }
-        else {
+        let taskCopy = {...src[sel]};
+
+        if (a === 'del') { 
+            src[sel] = {t:"", s:0}; 
+        } else {
             let ti = db[a].findIndex(x => x.t.trim() === "");
-            if(ti !== -1) db[a][ti] = copy; else db[a].push(copy);
-            if(!arcFocus) src[sel] = {t:"", s:0};
+            // Migration from Archive always starts as an Arrow (s=2)
+            let targetStatus = arcFocus ? 2 : taskCopy.s;
+            let newTask = {t: taskCopy.t, s: targetStatus};
+
+            if(ti !== -1) db[a][ti] = newTask; else db[a].push(newTask);
+
+            if(arcFocus) {
+                src[sel].s = 2; // Mark history with arrow
+            } else {
+                src[sel] = {t:"", s:0}; // Remove from active list
+            }
         }
         save(); render(); closeAll();
     }
@@ -319,7 +334,12 @@
         let md = `# Analog Card History\nExported: ${new Date().toLocaleDateString()}\n\n`;
         const formatSection = (t, s, tasks) => {
             let sec = `## ${t} (${s})\n`;
-            tasks.forEach(task => { if(task.t.trim()) sec += `${task.s===1?'- [x]':'- [ ]'} ${task.t}\n`; });
+            tasks.forEach(task => { 
+                if(task.t.trim()) {
+                    let mark = task.s === 1 ? '- [x]' : (task.s === 2 ? '- [>]' : '- [ ]');
+                    sec += `${mark} ${task.t}\n`; 
+                }
+            });
             return sec + "\n";
         };
         md += formatSection("Today", getShortDate(new Date()), db.today);
@@ -361,7 +381,7 @@
     function viewArc(i) { arcFocus = { tasks: db.archive[i].tasks, d: db.archive[i].d, originalIdx: i }; render(); }
     function delArch(e, i) { e.stopPropagation(); if(confirm("Delete this card?")) { db.archive.splice(i, 1); save(); render(); } }
     function tgl(i) { if(arcFocus)return; let v=['today','next','someday','archive'][cur]; db[v][i].s=(db[v][i].s+1)%3; save(); render(); }
-    function upd(i,v) { if(arcFocus)return; db[['today','next','someday','archive'][cur]][i].t=v; save(); }
+    function upd(i,v) { if(arcFocus)return; db[['today','next','someday','archive'][cur]][i].t=v; render(); save(); }
     function fin() {
         if(!confirm("Archive today?")) return;
         db.archive.push({d: getShortDate(new Date()), tasks: JSON.parse(JSON.stringify(db.today))});
