@@ -48,7 +48,37 @@
         
         .hdr span { font-size: 22px; color: rgba(0,0,0,0.5); text-align: right; padding-top: 2px; }
 
-        /* Toast Notification Styles */
+        /* Drag & Drop Feedback */
+        li.dragging { 
+            opacity: 0.8; 
+            transform: scale(1.02); 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1); 
+            background: rgba(255,255,255,0.4); 
+            z-index: 100;
+        }
+        .drop-indicator {
+            height: 2px;
+            background: var(--text);
+            margin: 0 15px 0 48px;
+            border-radius: 2px;
+            position: absolute;
+            width: calc(100% - 63px);
+            pointer-events: none;
+            display: none;
+            z-index: 50;
+        }
+
+        /* Archive UI Updates */
+        .arch-item { 
+            padding: 20px 15px; border-bottom: 1px solid var(--rule); 
+            display: flex; justify-content: space-between; align-items: center; 
+        }
+        .arch-date { font-size: 28px; line-height: 1; flex: 1; }
+        .arch-meta { 
+            display: flex; align-items: center; gap: 15px; 
+            font-family: sans-serif; font-size: 12px; color: rgba(0,0,0,0.4);
+        }
+
         #toast {
             position: fixed; top: -100px; left: 50%; transform: translateX(-50%);
             width: 90%; max-width: 400px; background: #333; color: #fff;
@@ -58,29 +88,19 @@
             transition: top 0.5s cubic-bezier(0.18, 0.89, 0.32, 1.28);
         }
         #toast.show { top: 20px; }
-        .t-btn { 
-            background: #fff; color: #000; border: none; padding: 6px 12px; 
-            border-radius: 6px; font-weight: bold; font-size: 11px; cursor: pointer;
-            text-transform: uppercase; margin-left: 10px;
-        }
+        .t-btn { background: #fff; color: #000; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; font-size: 11px; cursor: pointer; text-transform: uppercase; }
 
-        .settings-trigger, .dots, .hndl, .btn-c, .fin-btn, .m-item {
-            transition: opacity 0.1s, transform 0.1s;
-            cursor: pointer;
-        }
-        .settings-trigger:active, .dots:active, .hndl:active, .btn-c:active, .fin-btn:active, .m-item:active {
-            opacity: 0.4; transform: scale(0.96);
-        }
+        .settings-trigger, .dots, .hndl, .btn-c, .fin-btn, .m-item { transition: opacity 0.1s, transform 0.1s; cursor: pointer; }
+        .settings-trigger:active, .dots:active, .hndl:active, .btn-c:active, .fin-btn:active, .m-item:active { opacity: 0.4; transform: scale(0.96); }
 
         .settings-trigger { width: 24px; height: 24px; fill: rgba(0,0,0,0.6); margin-top: 4px; outline: none; }
 
-        ul { list-style: none; margin: 0; padding: 0; }
+        ul { list-style: none; margin: 0; padding: 0; position: relative; }
         li { 
             height: var(--line); display: flex; align-items: center; 
             padding: 0 10px 0 12px; position: relative; background: transparent; touch-action: none; 
-            box-sizing: border-box;
+            box-sizing: border-box; transition: background 0.2s;
         }
-
         li::after { content: ""; position: absolute; bottom: 0; left: 48px; right: 15px; height: 1px; background-color: var(--rule); }
 
         .btn-c { width: 18px; height: 18px; border: 1.2px solid #000; border-radius: 50%; margin-right: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; z-index: 2; background: transparent; }
@@ -116,18 +136,14 @@
         .m-item { padding: 20px; text-align: center; border-bottom: 1px solid #f5f5f5; color: #111; font-size: 16px; font-weight: 600; }
         #ov { position: fixed; inset: 0; background: rgba(0,0,0,0.3); display: none; z-index: 90; }
 
-        .arch-item { padding: 18px 15px; border-bottom: 1px solid var(--rule); display: flex; justify-content: space-between; align-items: center; }
         .del-card { color: #ef4444; font-size: 22px; padding: 0 10px; opacity: 0.5; }
     </style>
 </head>
 <body>
-    <div id="toast">
-        <span>Time for a weekly backup?</span>
-        <button class="t-btn" onclick="exportData(true)">Backup Now</button>
-    </div>
-
+    <div id="toast"><span>Time for a weekly backup?</span><button class="t-btn" onclick="exportData(true)">Backup</button></div>
     <div id="vp"><div id="card" class="card"></div></div>
     <div id="ov" onclick="closeAll()"></div>
+    <div id="drop-indicator" class="drop-indicator"></div>
     
     <div id="menu">
         <div id="m-context-title" style="padding:15px; font-size:12px; color:#999; text-transform:uppercase; text-align:center; border-bottom:1px solid #eee;">Options</div>
@@ -146,7 +162,7 @@
 
 <script>
     let cur = 0, sel = null, arcFocus = null;
-    const VERSION_KEY = 'v30';
+    const VERSION_KEY = 'v31';
 
     let db = {
         today: JSON.parse(localStorage.getItem(VERSION_KEY+'_t')) || Array(10).fill().map(()=>({t:"", s:0})),
@@ -157,9 +173,6 @@
         lastBackup: localStorage.getItem(VERSION_KEY+'_lastBackup') || Date.now()
     };
 
-    const gearSVG = `<svg class="settings-trigger" onclick="openSettings()" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>`;
-    const delSVG = `<svg class="del-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="12" x2="17" y2="12"></line><polyline points="12 7 17 12 12 17"></polyline></svg>`;
-
     function save() { 
         localStorage.setItem(VERSION_KEY+'_t', JSON.stringify(db.today)); 
         localStorage.setItem(VERSION_KEY+'_n', JSON.stringify(db.next)); 
@@ -169,40 +182,7 @@
         localStorage.setItem(VERSION_KEY+'_lastBackup', db.lastBackup);
     }
 
-    function checkBackupHealth() {
-        const week = 7 * 24 * 60 * 60 * 1000;
-        if (Date.now() - db.lastBackup > week) {
-            document.getElementById('toast').classList.add('show');
-        }
-    }
-
-    function exportData(fromToast = false) {
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db));
-        const a = document.createElement('a'); a.setAttribute("href", dataStr);
-        a.setAttribute("download", "analog_backup_" + new Date().toISOString().slice(0,10) + ".json");
-        a.click();
-        
-        db.lastBackup = Date.now();
-        save();
-        
-        if(fromToast) document.getElementById('toast').classList.remove('show');
-        closeAll();
-    }
-
-    function getShortDate(dObj) {
-        return `${dObj.toLocaleDateString('en-US', { month: 'short' })} ${dObj.getDate()}, ${dObj.getFullYear()}`;
-    }
-
-    function checkDateRollover() {
-        const todayStr = getShortDate(new Date());
-        if (db.lastActiveDate !== "" && db.lastActiveDate !== todayStr) {
-            const hasTasks = db.today.some(x => x.t.trim() !== "");
-            if (hasTasks) db.archive.push({d: db.lastActiveDate, tasks: JSON.parse(JSON.stringify(db.today))});
-            db.today = Array(10).fill().map(()=>({t:"", s:0}));
-        }
-        db.lastActiveDate = todayStr;
-        save();
-    }
+    function getShortDate(dObj) { return `${dObj.toLocaleDateString('en-US', { month: 'short' })} ${dObj.getDate()}, ${dObj.getFullYear()}`; }
 
     function render() {
         const views = ['today', 'next', 'someday', 'archive'];
@@ -212,12 +192,14 @@
         el.className = 'card ' + classMap[cur];
 
         if(cur === 3 && !arcFocus) {
+            const gearSVG = `<svg class="settings-trigger" onclick="openSettings()" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>`;
             el.innerHTML = `<div class="hdr"><b>Archive</b>${gearSVG}</div><div id="arch-list" style="overflow-y:auto; height:calc(100% - 100px)"></div>`;
             const list = document.getElementById('arch-list');
             db.archive.slice().reverse().forEach((e, originalIdx) => {
                 let realIdx = db.archive.length - 1 - originalIdx;
                 let r = document.createElement('div'); r.className='arch-item';
-                r.innerHTML = `<div style="flex:1" onclick="viewArc(${realIdx})"><b>${e.d}</b><br><small style="color:rgba(0,0,0,0.5); font-family:sans-serif; font-size:11px">${e.tasks.filter(x=>x.s==1).length} Completed</small></div><div class="del-card" onclick="delArch(event, ${realIdx})">×</div>`;
+                r.innerHTML = `<div class="arch-date" onclick="viewArc(${realIdx})">${e.d}</div>
+                               <div class="arch-meta"><span>${e.tasks.filter(x=>x.s==1).length} DONE</span><div class="del-card" onclick="delArch(event, ${realIdx})">×</div></div>`;
                 list.appendChild(r);
             });
             return;
@@ -231,30 +213,62 @@
         if(cur===0 && !arcFocus) el.innerHTML += `<div style="padding:15px 25px;"><button class="fin-btn" onclick="fin()">FINISH DAY</button></div>`;
 
         const list = document.getElementById('list');
+        const delSVG = `<svg class="del-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="12" x2="17" y2="12"></line><polyline points="12 7 17 12 12 17"></polyline></svg>`;
         data.forEach((item, i) => {
-            let li = document.createElement('li');
-            li.dataset.idx = i;
+            let li = document.createElement('li'); li.dataset.idx = i;
             let icon = item.s==1 ? '<div class="dot-in"></div>' : (item.s==2 ? delSVG : '');
-            li.innerHTML = `
-                <div class="btn-c" onclick="tgl(${i})">${icon}</div>
+            li.innerHTML = `<div class="btn-c" onclick="tgl(${i})">${icon}</div>
                 <input type="text" value="${item.t}" oninput="upd(${i},this.value)" class="${item.s==1?'done':''}">
-                <div class="ctrls">
-                    <span class="dots" onclick="openM(${i})">⋮</span>
-                    <span class="hndl" onpointerdown="startDrag(event, ${i})">⠿</span>
-                </div>`;
+                <div class="ctrls"><span class="dots" onclick="openM(${i})">⋮</span><span class="hndl" onpointerdown="startDrag(event, ${i})">⠿</span></div>`;
             list.appendChild(li);
         });
     }
 
+    // Drag and Drop Logic with Drop Indicator
+    let dragEl = null;
+    function startDrag(e, i) { 
+        if(arcFocus) return; 
+        dragEl = e.target.closest('li'); 
+        dragEl.classList.add('dragging');
+        dragEl.setPointerCapture(e.pointerId); 
+    }
+    document.addEventListener('pointermove', e => {
+        if(!dragEl) return;
+        const list = document.getElementById('list');
+        const indicator = document.getElementById('drop-indicator');
+        const items = [...list.querySelectorAll('li:not(.dragging)')];
+        
+        let next = items.find(s => e.clientY <= s.getBoundingClientRect().top + s.offsetHeight/2);
+        
+        indicator.style.display = 'block';
+        if (next) {
+            indicator.style.top = next.getBoundingClientRect().top + 'px';
+        } else if (items.length > 0) {
+            const last = items[items.length - 1].getBoundingClientRect();
+            indicator.style.top = last.bottom + 'px';
+        }
+    });
+    document.addEventListener('pointerup', e => {
+        if(!dragEl) return;
+        const list = document.getElementById('list');
+        const indicator = document.getElementById('drop-indicator');
+        const next = [...list.querySelectorAll('li:not(.dragging)')].find(s => e.clientY <= s.getBoundingClientRect().top + s.offsetHeight/2);
+        
+        list.insertBefore(dragEl, next);
+        dragEl.classList.remove('dragging');
+        indicator.style.display = 'none';
+
+        let v = ['today','next','someday','archive'][cur];
+        db[v] = [...list.querySelectorAll('li')].map(li => db[v][li.dataset.idx]);
+        dragEl = null; save(); render();
+    });
+
     function openM(i) { 
-        sel=i; 
-        const container = document.getElementById('m-options-container');
-        container.innerHTML = '';
+        sel=i; const container = document.getElementById('m-options-container'); container.innerHTML = '';
         const currentView = ['today', 'next', 'someday', 'archive'][cur];
         const addOption = (label, action, color) => {
             const div = document.createElement('div'); div.className = 'm-item';
-            if(color) div.style.color = color;
-            div.innerText = label; div.onclick = () => mAct(action);
+            if(color) div.style.color = color; div.innerText = label; div.onclick = () => mAct(action);
             container.appendChild(div);
         };
         if(arcFocus) {
@@ -267,8 +281,7 @@
             if(currentView !== 'someday') addOption("Move to Someday", "someday");
             addOption("Delete Task", "del", "red");
         }
-        document.getElementById('menu').classList.add('open'); 
-        document.getElementById('ov').style.display='block'; 
+        document.getElementById('menu').classList.add('open'); document.getElementById('ov').style.display='block'; 
     }
 
     function mAct(a) { 
@@ -283,24 +296,40 @@
         save(); render(); closeAll();
     }
 
+    function exportData(fromToast = false) {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db));
+        const a = document.createElement('a'); a.setAttribute("href", dataStr); a.setAttribute("download", "analog_backup_" + new Date().toISOString().slice(0,10) + ".json"); a.click();
+        db.lastBackup = Date.now(); save();
+        if(fromToast) document.getElementById('toast').classList.remove('show');
+        closeAll();
+    }
+
     function exportMarkdown() {
         let md = `# Analog Card History\nExported: ${new Date().toLocaleDateString()}\n\n`;
-        const formatSection = (title, subtitle, tasks) => {
-            let section = `## ${title} (${subtitle})\n`;
-            tasks.forEach(t => { if(!t.t.trim()) return; section += `${t.s===1?'- [x]':'- [ ]'} ${t.t}\n`; });
-            return section + "\n";
+        const formatSection = (t, s, tasks) => {
+            let sec = `## ${t} (${s})\n`;
+            tasks.forEach(task => { if(task.t.trim()) sec += `${task.s===1?'- [x]':'- [ ]'} ${task.t}\n`; });
+            return sec + "\n";
         };
         md += formatSection("Today", getShortDate(new Date()), db.today);
         md += formatSection("Next", "Priority", db.next);
         md += formatSection("Someday", "Ideas", db.someday);
         md += "--- \n# Archive\n\n";
-        db.archive.slice().reverse().forEach(entry => { md += formatSection("Card", entry.d, entry.tasks); });
+        db.archive.slice().reverse().forEach(e => { md += formatSection("Card", e.d, e.tasks); });
         const blob = new Blob([md], {type: 'text/markdown'});
-        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-        a.download = `analog_history_${new Date().toISOString().slice(0,10)}.md`;
-        a.click(); closeAll();
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `analog_history_${new Date().toISOString().slice(0,10)}.md`; a.click(); closeAll();
     }
 
+    function checkDateRollover() {
+        const todayStr = getShortDate(new Date());
+        if (db.lastActiveDate !== "" && db.lastActiveDate !== todayStr) {
+            if (db.today.some(x => x.t.trim() !== "")) db.archive.push({d: db.lastActiveDate, tasks: JSON.parse(JSON.stringify(db.today))});
+            db.today = Array(10).fill().map(()=>({t:"", s:0}));
+        }
+        db.lastActiveDate = todayStr; save();
+    }
+
+    function checkBackupHealth() { if (Date.now() - db.lastBackup > 7*24*60*60*1000) document.getElementById('toast').classList.add('show'); }
     function openSettings() { document.getElementById('settings-menu').classList.add('open'); document.getElementById('ov').style.display='block'; }
     function closeAll() { document.getElementById('menu').classList.remove('open'); document.getElementById('settings-menu').classList.remove('open'); document.getElementById('ov').style.display='none'; }
     function importData() { document.getElementById('fileInput').click(); }
@@ -325,37 +354,17 @@
     function fin() {
         if(!confirm("Archive today?")) return;
         db.archive.push({d: getShortDate(new Date()), tasks: JSON.parse(JSON.stringify(db.today))});
-        db.today = Array(10).fill().map(()=>({t:"", s:0}));
-        save(); render();
+        db.today = Array(10).fill().map(()=>({t:"", s:0})); save(); render();
     }
 
-    let dragEl = null;
-    function startDrag(e, i) { if(arcFocus) return; dragEl = e.target.closest('li'); dragEl.setPointerCapture(e.pointerId); }
-    document.addEventListener('pointermove', e => {
-        if(!dragEl) return;
-        let list = document.getElementById('list');
-        let next = [...list.querySelectorAll('li:not(.dragging)')].find(s => e.clientY <= s.getBoundingClientRect().top + s.offsetHeight/2);
-        list.insertBefore(dragEl, next);
-    });
-    document.addEventListener('pointerup', e => {
-        if(!dragEl) return;
-        let v = ['today','next','someday','archive'][cur];
-        db[v] = [...document.querySelectorAll('#list li')].map(li => db[v][li.dataset.idx]);
-        dragEl = null; save(); render();
-    });
     let sX = 0;
     document.addEventListener('touchstart', e => sX = e.touches[0].clientX);
     document.addEventListener('touchend', e => {
         let diff = e.changedTouches[0].clientX - sX;
-        if(Math.abs(diff) > 70) {
-            if(arcFocus){ arcFocus=null; render(); return; }
-            jump(-Math.sign(diff));
-        }
+        if(Math.abs(diff) > 70 && !dragEl) { if(arcFocus){ arcFocus=null; render(); return; } jump(-Math.sign(diff)); }
     });
 
-    checkDateRollover();
-    checkBackupHealth();
-    render();
+    checkDateRollover(); checkBackupHealth(); render();
 </script>
 </body>
 </html>
