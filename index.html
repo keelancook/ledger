@@ -48,7 +48,23 @@
         
         .hdr span { font-size: 22px; color: rgba(0,0,0,0.5); text-align: right; padding-top: 2px; }
 
-        /* Drag & Drop Feedback */
+        /* Dynamic Drop Indicator */
+        .drop-indicator {
+            height: 1.5px;
+            background: #666; /* Default grey */
+            margin: 0 15px 0 48px;
+            position: absolute;
+            width: calc(100% - 63px);
+            pointer-events: none;
+            display: none;
+            z-index: 50;
+            opacity: 0.8;
+        }
+        .drop-indicator.priority {
+            background: var(--priority);
+            height: 1.2px;
+        }
+
         li.dragging { 
             opacity: 0.8; 
             transform: scale(1.02); 
@@ -56,28 +72,10 @@
             background: rgba(255,255,255,0.4); 
             z-index: 100;
         }
-        .drop-indicator {
-            height: 2px;
-            background: var(--text);
-            margin: 0 15px 0 48px;
-            border-radius: 2px;
-            position: absolute;
-            width: calc(100% - 63px);
-            pointer-events: none;
-            display: none;
-            z-index: 50;
-        }
 
-        /* Archive UI Updates */
-        .arch-item { 
-            padding: 20px 15px; border-bottom: 1px solid var(--rule); 
-            display: flex; justify-content: space-between; align-items: center; 
-        }
+        .arch-item { padding: 20px 15px; border-bottom: 1px solid var(--rule); display: flex; justify-content: space-between; align-items: center; }
         .arch-date { font-size: 28px; line-height: 1; flex: 1; }
-        .arch-meta { 
-            display: flex; align-items: center; gap: 15px; 
-            font-family: sans-serif; font-size: 12px; color: rgba(0,0,0,0.4);
-        }
+        .arch-meta { display: flex; align-items: center; gap: 15px; font-family: sans-serif; font-size: 12px; color: rgba(0,0,0,0.4); }
 
         #toast {
             position: fixed; top: -100px; left: 50%; transform: translateX(-50%);
@@ -99,7 +97,7 @@
         li { 
             height: var(--line); display: flex; align-items: center; 
             padding: 0 10px 0 12px; position: relative; background: transparent; touch-action: none; 
-            box-sizing: border-box; transition: background 0.2s;
+            box-sizing: border-box;
         }
         li::after { content: ""; position: absolute; bottom: 0; left: 48px; right: 15px; height: 1px; background-color: var(--rule); }
 
@@ -162,24 +160,41 @@
 
 <script>
     let cur = 0, sel = null, arcFocus = null;
-    const VERSION_KEY = 'v31';
+    const STORAGE_KEY = 'analog_db';
+
+    function migrateData() {
+        const legacyKeys = ['v31', 'v30', 'v29'];
+        legacyKeys.forEach(k => {
+            const todayData = localStorage.getItem(k + '_t');
+            if (todayData && !localStorage.getItem(STORAGE_KEY + '_t')) {
+                localStorage.setItem(STORAGE_KEY + '_t', todayData);
+                localStorage.setItem(STORAGE_KEY + '_n', localStorage.getItem(k + '_n'));
+                localStorage.setItem(STORAGE_KEY + '_s', localStorage.getItem(k + '_s'));
+                localStorage.setItem(STORAGE_KEY + '_a', localStorage.getItem(k + '_a'));
+                localStorage.setItem(STORAGE_KEY + '_lastDate', localStorage.getItem(k + '_lastDate'));
+                localStorage.setItem(STORAGE_KEY + '_lastBackup', localStorage.getItem(k + '_lastBackup'));
+            }
+        });
+    }
+
+    migrateData();
 
     let db = {
-        today: JSON.parse(localStorage.getItem(VERSION_KEY+'_t')) || Array(10).fill().map(()=>({t:"", s:0})),
-        next: JSON.parse(localStorage.getItem(VERSION_KEY+'_n')) || Array(10).fill().map(()=>({t:"", s:0})),
-        someday: JSON.parse(localStorage.getItem(VERSION_KEY+'_s')) || Array(10).fill().map(()=>({t:"", s:0})),
-        archive: JSON.parse(localStorage.getItem(VERSION_KEY+'_a')) || [],
-        lastActiveDate: localStorage.getItem(VERSION_KEY+'_lastDate') || "",
-        lastBackup: localStorage.getItem(VERSION_KEY+'_lastBackup') || Date.now()
+        today: JSON.parse(localStorage.getItem(STORAGE_KEY+'_t')) || Array(10).fill().map(()=>({t:"", s:0})),
+        next: JSON.parse(localStorage.getItem(STORAGE_KEY+'_n')) || Array(10).fill().map(()=>({t:"", s:0})),
+        someday: JSON.parse(localStorage.getItem(STORAGE_KEY+'_s')) || Array(10).fill().map(()=>({t:"", s:0})),
+        archive: JSON.parse(localStorage.getItem(STORAGE_KEY+'_a')) || [],
+        lastActiveDate: localStorage.getItem(STORAGE_KEY+'_lastDate') || "",
+        lastBackup: localStorage.getItem(STORAGE_KEY+'_lastBackup') || Date.now()
     };
 
     function save() { 
-        localStorage.setItem(VERSION_KEY+'_t', JSON.stringify(db.today)); 
-        localStorage.setItem(VERSION_KEY+'_n', JSON.stringify(db.next)); 
-        localStorage.setItem(VERSION_KEY+'_s', JSON.stringify(db.someday)); 
-        localStorage.setItem(VERSION_KEY+'_a', JSON.stringify(db.archive)); 
-        localStorage.setItem(VERSION_KEY+'_lastDate', db.lastActiveDate);
-        localStorage.setItem(VERSION_KEY+'_lastBackup', db.lastBackup);
+        localStorage.setItem(STORAGE_KEY+'_t', JSON.stringify(db.today)); 
+        localStorage.setItem(STORAGE_KEY+'_n', JSON.stringify(db.next)); 
+        localStorage.setItem(STORAGE_KEY+'_s', JSON.stringify(db.someday)); 
+        localStorage.setItem(STORAGE_KEY+'_a', JSON.stringify(db.archive)); 
+        localStorage.setItem(STORAGE_KEY+'_lastDate', db.lastActiveDate);
+        localStorage.setItem(STORAGE_KEY+'_lastBackup', db.lastBackup);
     }
 
     function getShortDate(dObj) { return `${dObj.toLocaleDateString('en-US', { month: 'short' })} ${dObj.getDate()}, ${dObj.getFullYear()}`; }
@@ -224,7 +239,6 @@
         });
     }
 
-    // Drag and Drop Logic with Drop Indicator
     let dragEl = null;
     function startDrag(e, i) { 
         if(arcFocus) return; 
@@ -236,28 +250,25 @@
         if(!dragEl) return;
         const list = document.getElementById('list');
         const indicator = document.getElementById('drop-indicator');
+        
+        // Apply color based on view
+        if (cur === 0) indicator.classList.add('priority');
+        else indicator.classList.remove('priority');
+
         const items = [...list.querySelectorAll('li:not(.dragging)')];
-        
         let next = items.find(s => e.clientY <= s.getBoundingClientRect().top + s.offsetHeight/2);
-        
         indicator.style.display = 'block';
-        if (next) {
-            indicator.style.top = next.getBoundingClientRect().top + 'px';
-        } else if (items.length > 0) {
-            const last = items[items.length - 1].getBoundingClientRect();
-            indicator.style.top = last.bottom + 'px';
-        }
+        if (next) indicator.style.top = next.getBoundingClientRect().top + 'px';
+        else if (items.length > 0) indicator.style.top = items[items.length - 1].getBoundingClientRect().bottom + 'px';
     });
     document.addEventListener('pointerup', e => {
         if(!dragEl) return;
         const list = document.getElementById('list');
         const indicator = document.getElementById('drop-indicator');
         const next = [...list.querySelectorAll('li:not(.dragging)')].find(s => e.clientY <= s.getBoundingClientRect().top + s.offsetHeight/2);
-        
         list.insertBefore(dragEl, next);
         dragEl.classList.remove('dragging');
         indicator.style.display = 'none';
-
         let v = ['today','next','someday','archive'][cur];
         db[v] = [...list.querySelectorAll('li')].map(li => db[v][li.dataset.idx]);
         dragEl = null; save(); render();
@@ -285,13 +296,13 @@
     }
 
     function mAct(a) { 
-        let sourceData = arcFocus ? arcFocus.tasks : db[['today', 'next', 'someday', 'archive'][cur]];
-        let taskCopy = {...sourceData[sel], s: 0};
-        if (a === 'del') { sourceData[sel] = {t:"", s:0}; }
+        let src = arcFocus ? arcFocus.tasks : db[['today', 'next', 'someday', 'archive'][cur]];
+        let copy = {...src[sel], s: 0};
+        if (a === 'del') { src[sel] = {t:"", s:0}; }
         else {
-            let targetIdx = db[a].findIndex(x => x.t.trim() === "");
-            if(targetIdx !== -1) db[a][targetIdx] = taskCopy; else db[a].push(taskCopy);
-            if(!arcFocus) sourceData[sel] = {t:"", s:0};
+            let ti = db[a].findIndex(x => x.t.trim() === "");
+            if(ti !== -1) db[a][ti] = copy; else db[a].push(copy);
+            if(!arcFocus) src[sel] = {t:"", s:0};
         }
         save(); render(); closeAll();
     }
@@ -317,7 +328,7 @@
         md += "--- \n# Archive\n\n";
         db.archive.slice().reverse().forEach(e => { md += formatSection("Card", e.d, e.tasks); });
         const blob = new Blob([md], {type: 'text/markdown'});
-        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `analog_history_${new Date().toISOString().slice(0,10)}.md`; a.click(); closeAll();
+        const a = document.createElement('a'); a.setAttribute("href", URL.createObjectURL(blob)); a.setAttribute("download", `analog_history_${new Date().toISOString().slice(0,10)}.md`); a.click(); closeAll();
     }
 
     function checkDateRollover() {
@@ -356,7 +367,6 @@
         db.archive.push({d: getShortDate(new Date()), tasks: JSON.parse(JSON.stringify(db.today))});
         db.today = Array(10).fill().map(()=>({t:"", s:0})); save(); render();
     }
-
     let sX = 0;
     document.addEventListener('touchstart', e => sX = e.touches[0].clientX);
     document.addEventListener('touchend', e => {
