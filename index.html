@@ -76,14 +76,14 @@
 
         .arch-item { padding: 12px 20px; border-bottom: 1px solid var(--rule); display: flex; align-items: center; min-height: 64px; }
         .arch-date { flex: 1; font-size: 28px; cursor: pointer; padding: 5px 0; }
-        .arch-ctrls { display: flex; align-items: center; gap: 8px; }
+        .arch-ctrls { display: flex; align-items: center; gap: 4px; height: 44px; }
         .arch-btn { 
-            width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; 
+            width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; 
             cursor: pointer; user-select: none; border-radius: 50%; border: none; background: transparent;
         }
-        .arch-undo { color: #000; opacity: 0.6; font-size: 24px; }
+        .arch-undo { color: #000; opacity: 0.6; }
         .arch-del { color: var(--priority); }
-        .arch-del svg { width: 22px; height: 22px; stroke: currentColor; }
+        .arch-btn svg { width: 22px; height: 22px; stroke: currentColor; fill: none; display: block; }
         .arch-btn:active { background: rgba(0,0,0,0.08); }
         
         .settings-trigger { width: 24px; height: 24px; fill: rgba(0,0,0,0.6); margin-top: 4px; cursor: pointer; }
@@ -158,9 +158,12 @@
                 r.innerHTML = `
                     <div class="arch-date" onclick="viewArc(${realIdx})">${e.d}</div>
                     <div class="arch-ctrls">
-                        ${isToday ? `<div class="arch-btn arch-undo" onclick="undoFin(${realIdx})">⟲</div>` : ''}
+                        ${isToday ? `
+                        <div class="arch-btn arch-undo" onclick="undoFin(${realIdx})">
+                            <svg viewBox="0 0 24 24" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+                        </div>` : ''}
                         <div class="arch-btn arch-del" onclick="delArch(event, ${realIdx})">
-                            <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                            <svg viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                         </div>
                     </div>`;
                 document.getElementById('arch-list').appendChild(r);
