@@ -76,14 +76,15 @@
 
         .arch-item { padding: 12px 20px; border-bottom: 1px solid var(--rule); display: flex; align-items: center; min-height: 64px; }
         .arch-date { flex: 1; font-size: 28px; cursor: pointer; padding: 5px 0; }
-        .arch-ctrls { display: flex; align-items: center; gap: 4px; }
+        .arch-ctrls { display: flex; align-items: center; gap: 8px; }
         .arch-btn { 
-            width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; 
-            font-size: 26px; cursor: pointer; user-select: none; border-radius: 50%;
+            width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; 
+            cursor: pointer; user-select: none; border-radius: 50%; border: none; background: transparent;
         }
-        .arch-undo { color: #000; opacity: 0.6; }
-        .arch-del { color: #991b1b; }
-        .arch-btn:active { background: rgba(0,0,0,0.05); }
+        .arch-undo { color: #000; opacity: 0.6; font-size: 24px; }
+        .arch-del { color: var(--priority); }
+        .arch-del svg { width: 22px; height: 22px; stroke: currentColor; }
+        .arch-btn:active { background: rgba(0,0,0,0.08); }
         
         .settings-trigger { width: 24px; height: 24px; fill: rgba(0,0,0,0.6); margin-top: 4px; cursor: pointer; }
     </style>
@@ -158,7 +159,9 @@
                     <div class="arch-date" onclick="viewArc(${realIdx})">${e.d}</div>
                     <div class="arch-ctrls">
                         ${isToday ? `<div class="arch-btn arch-undo" onclick="undoFin(${realIdx})">⟲</div>` : ''}
-                        <div class="arch-btn arch-del" onclick="delArch(event, ${realIdx})">×</div>
+                        <div class="arch-btn arch-del" onclick="delArch(event, ${realIdx})">
+                            <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </div>
                     </div>`;
                 document.getElementById('arch-list').appendChild(r);
             });
@@ -260,14 +263,10 @@
     function fin(isAuto = false) { 
         if(!isAuto && !confirm("Archive today?")) return; 
         const todayStr = getShortDate(new Date());
-        
-        // Use standard date for entry
         db.archive.push({d: todayStr, tasks: JSON.parse(JSON.stringify(db.today))}); 
-        
         const migrated = db.today.filter(t => (t.s === 1 || t.s === 3) && t.t.trim() !== "");
         db.today = Array(10).fill().map(()=>({t:"", s:0}));
         migrated.forEach((t, i) => { if(i < 10) db.today[i] = { t: t.t, s: t.s }; });
-        
         db.lastActiveDate = todayStr;
         save(); if(!isAuto) render(); 
     }
@@ -276,7 +275,6 @@
         if(!confirm("Restore this card to Today? (Tasks will merge with your current Today card)")) return;
         let archivedCard = db.archive.splice(idx, 1)[0];
         let archivedTasks = archivedCard.tasks.filter(t => t.t.trim() !== "");
-
         archivedTasks.forEach(task => {
             let emptyIdx = db.today.findIndex(t => t.t.trim() === "");
             if (emptyIdx !== -1) {
@@ -285,7 +283,6 @@
                 db.today.push(task);
             }
         });
-
         arcFocus = null;
         cur = 0; 
         save(); render();
