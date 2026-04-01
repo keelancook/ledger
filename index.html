@@ -14,81 +14,37 @@
             overflow: hidden; height: 100vh; width: 100vw; -webkit-tap-highlight-color: transparent;
         }
         #vp { width: 100%; height: 100vh; position: relative; overflow: hidden; }
-        
-        .card { 
-            width: 100%; height: 100%; position: absolute; top: 0; left: 0; 
-            transition: transform 0.25s cubic-bezier(0.2, 1, 0.3, 1); 
-            box-sizing: border-box;
-        }
-
+        .card { width: 100%; height: 100%; position: absolute; top: 0; left: 0; transition: transform 0.25s cubic-bezier(0.2, 1, 0.3, 1); box-sizing: border-box; }
         .c-today { background: var(--paper-today); }
         .c-next { background: var(--paper-next); }
         .c-someday { background: var(--paper-someday); }
         .c-ledger { background: var(--paper-ledger); }
-
         .hdr { height: 100px; display: flex; align-items: flex-start; justify-content: space-between; padding: 20px 20px 0 20px; box-sizing: border-box; }
         .hdr b { font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; color: #000; }
         .hdr span { font-size: 22px; color: rgba(0,0,0,0.5); text-align: right; padding-top: 2px; }
-
         ul { list-style: none; margin: 0; padding: 0; position: relative; }
-        li { 
-            height: var(--line); display: flex; align-items: center; 
-            padding: 0 15px; 
-            position: relative; background: transparent; touch-action: none; box-sizing: border-box; 
-        }
+        li { height: var(--line); display: flex; align-items: center; padding: 0 15px; position: relative; background: transparent; touch-action: none; box-sizing: border-box; }
         li::after { content: ""; position: absolute; bottom: 0; left: 48px; right: 15px; height: 1px; background-color: var(--rule); }
-        
-        li.dragging { 
-            opacity: 0.8; transform: scale(1.02); 
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1); 
-            background: rgba(255,255,255,0.4); z-index: 100; 
-        }
-
-        .btn-c { 
-            width: 18px; height: 18px; border: 1.2px solid #000; border-radius: 50%; 
-            margin-right: 12px; display: flex; align-items: center; justify-content: center; 
-            flex-shrink: 0; z-index: 2; background: transparent; position: relative; overflow: hidden;
-        }
+        li.dragging { opacity: 0.8; transform: scale(1.02); box-shadow: 0 5px 15px rgba(0,0,0,0.1); background: rgba(255,255,255,0.4); z-index: 100; }
+        .btn-c { width: 18px; height: 18px; border: 1.2px solid #000; border-radius: 50%; margin-right: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; z-index: 2; background: transparent; position: relative; overflow: hidden; }
         .today-list li:nth-child(-n+3) .btn-c { border-color: var(--priority); border-width: 2px; }
-        
         .btn-c.s-progress { background: linear-gradient(90deg, #000 50%, transparent 50%); }
         .btn-c.s-done { background: #000; border-color: #000; }
-        
         .del-arrow { width: 100%; height: 100%; color: inherit; }
-
         .inp-wrap { flex: 1; display: flex; align-items: center; min-width: 0; position: relative; height: 100%; }
-        input { 
-            flex: 1; border: none; font-size: 24px; outline: none; background: transparent; 
-            color: var(--text); z-index: 2; font-family: 'Nanum Pen Script', cursive; 
-            min-width: 0; padding-top: 4px;
-        }
+        input { flex: 1; border: none; font-size: 24px; outline: none; background: transparent; color: var(--text); z-index: 2; font-family: 'Nanum Pen Script', cursive; min-width: 0; padding-top: 4px; }
         .done { text-decoration: line-through; color: rgba(0,0,0,0.45); opacity: 0.7; }
-
-        .tally-hit-zone { 
-            display: grid; 
-            grid-template-rows: repeat(2, 1fr);
-            grid-auto-flow: column;
-            gap: 4px; 
-            height: 24px; 
-            padding: 0 8px 0 12px; 
-            cursor: pointer; 
-            z-index: 5;
-            align-items: center;
-        }
+        .tally-hit-zone { display: grid; grid-template-rows: repeat(2, 1fr); grid-auto-flow: column; gap: 4px; height: 24px; padding: 0 8px 0 12px; cursor: pointer; z-index: 5; align-items: center; }
         .dot { width: 5px; height: 5px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.2); transition: all 0.1s; }
         .dot.active { background: #000; border-color: #000; transform: scale(1.1); }
-
         .ctrls { display: flex; align-items: center; gap: 8px; color: rgba(0,0,0,0.3); z-index: 2; flex-shrink: 0; font-family: sans-serif; }
         .dots, .hndl { padding: 5px; font-size: 18px; cursor: pointer; user-select: none; }
         .hndl { font-size: 20px; }
-
         .fin-btn { padding: 8px 18px; background: #fff; color: #000; border: 1px solid rgba(0,0,0,0.4); border-radius: 6px; font-family: 'Cormorant Garamond', serif; font-weight: 500; font-size: 15px; letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer; }
-        
         #menu, #settings-menu { position: fixed; bottom: -100%; left: 0; width: 100%; background: #fff; box-shadow: 0 -10px 30px rgba(0,0,0,0.1); border-radius: 24px 24px 0 0; transition: 0.3s cubic-bezier(0.2, 1, 0.3, 1); z-index: 100; padding-bottom: 40px; font-family: sans-serif; }
         #menu.open, #settings-menu.open { bottom: 0; }
         .m-item { padding: 20px; text-align: center; border-bottom: 1px solid #f5f5f5; color: #111; font-size: 16px; font-weight: 600; cursor: pointer; }
         #ov { position: fixed; inset: 0; background: rgba(0,0,0,0.3); display: none; z-index: 90; }
-
         .ledger-item { padding: 12px 20px; border-bottom: 1px solid var(--rule); display: flex; align-items: center; min-height: 64px; }
         .ledger-date { flex: 1; font-size: 28px; cursor: pointer; padding: 5px 0; }
         .ledger-ctrls { display: flex; align-items: center; gap: 4px; height: 44px; }
@@ -96,36 +52,44 @@
         .ledger-undo { color: #000; opacity: 0.6; }
         .ledger-del { color: var(--priority); }
         .ledger-btn svg { width: 22px; height: 22px; stroke: currentColor; fill: none; display: block; }
-        
         .settings-trigger { width: 24px; height: 24px; fill: rgba(0,0,0,0.6); margin-top: 4px; cursor: pointer; }
     </style>
 </head>
 <body>
     <div id="vp"><div id="card" class="card"></div></div>
     <div id="ov" onclick="closeAll()"></div>
-    
     <div id="menu">
         <div id="m-context-title" style="padding:15px; font-size:12px; color:#999; text-transform:uppercase; text-align:center; border-bottom:1px solid #eee;">Protocol</div>
         <div id="m-options-container"></div>
         <div class="m-item" style="opacity:0.5; font-weight:400;" onclick="closeAll()">Cancel</div>
     </div>
-
     <div id="settings-menu">
         <div class="m-item" onclick="exportMarkdown()">Export Ledger (Markdown)</div>
         <div class="m-item" onclick="exportData()">Backup System (JSON)</div>
         <div class="m-item" onclick="importData()">Restore System (JSON)</div>
         <div class="m-item" style="opacity:0.5; font-weight:400;" onclick="closeAll()">Close</div>
     </div>
-
     <input type="file" id="fileInput" style="display:none" accept=".json">
 
 <script>
     let cur = 0, sel = null, arcFocus = null, dragEl = null;
     const STORAGE_KEY = 'ledger_db';
+    const OLD_KEY = 'analog_db';
 
-    function getShortDate(dObj) { 
-        return `${dObj.toLocaleDateString('en-US', { month: 'short' })} ${dObj.getDate()}, ${dObj.getFullYear()}`; 
+    function getShortDate(dObj) { return `${dObj.toLocaleDateString('en-US', { month: 'short' })} ${dObj.getDate()}, ${dObj.getFullYear()}`; }
+
+    // DATA MIGRATION BRIDGE
+    function migrate() {
+        const keys = ['_t', '_n', '_s', '_a', '_lastDate'];
+        keys.forEach(k => {
+            const oldData = localStorage.getItem(OLD_KEY + k);
+            const newData = localStorage.getItem(STORAGE_KEY + k);
+            if (oldData && !newData) {
+                localStorage.setItem(STORAGE_KEY + k, oldData);
+            }
+        });
     }
+    migrate();
 
     let db = {
         today: JSON.parse(localStorage.getItem(STORAGE_KEY+'_t')) || Array(10).fill().map(()=>({t:"", s:0, c:0})),
@@ -169,16 +133,7 @@
             db.archive.slice().reverse().forEach((e, i) => {
                 let realIdx = db.archive.length - 1 - i;
                 let r = document.createElement('div'); r.className='ledger-item';
-                r.innerHTML = `
-                    <div class="ledger-date" onclick="viewArc(${realIdx})">${e.d}</div>
-                    <div class="ledger-ctrls">
-                        <div class="ledger-btn ledger-undo" onclick="undoFin(${realIdx})">
-                            <svg viewBox="0 0 24 24" stroke="black" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
-                        </div>
-                        <div class="ledger-btn ledger-del" onclick="delArch(event, ${realIdx})">
-                            <svg viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke="red"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                        </div>
-                    </div>`;
+                r.innerHTML = `<div class="ledger-date" onclick="viewArc(${realIdx})">${e.d}</div><div class="ledger-ctrls"><div class="ledger-btn ledger-undo" onclick="undoFin(${realIdx})"><svg viewBox="0 0 24 24" stroke="black" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg></div><div class="ledger-btn ledger-del" onclick="delArch(event, ${realIdx})"><svg viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke="red"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></div></div>`;
                 document.getElementById('ledger-list').appendChild(r);
             });
             return;
@@ -200,199 +155,45 @@
             if (item.s === 1) btnClass += " s-progress";
             if (item.s === 2) btnClass += " s-done";
             let icon = item.s === 3 ? arrowSVG : '';
-            
             const tagMatch = item.t.match(/\((\d+)\)/);
             const goal = tagMatch ? parseInt(tagMatch[1]) : 0;
             const cleanText = item.t.replace(/\(\d+\)/g, '').trim();
             const count = item.c || 0;
-            
             let dotsHTML = '';
             if(goal > 0) {
                 dotsHTML = `<div class="tally-hit-zone" onclick="cycleDots(${i})">`;
-                for(let d=1; d<=goal; d++) {
-                    dotsHTML += `<div class="dot ${d<=count?'active':''}"></div>`;
-                }
+                for(let d=1; d<=goal; d++) dotsHTML += `<div class="dot ${d<=count?'active':''}"></div>`;
                 dotsHTML += '</div>';
             }
-
-            li.innerHTML = `<div class="${btnClass}" onclick="tgl(${i})">${icon}</div>
-                            <div class="inp-wrap">
-                                <input type="text" value="${cleanText}" oninput="upd(${i},this.value)" class="${item.s==2?'done':''}" ${arcFocus?'readonly':''}>
-                                ${dotsHTML}
-                            </div>
-                            <div class="ctrls"><span class="dots" onclick="openM(${i})">⋮</span><span class="hndl" onpointerdown="startDrag(event, ${i})">⠿</span></div>`;
+            li.innerHTML = `<div class="${btnClass}" onclick="tgl(${i})">${icon}</div><div class="inp-wrap"><input type="text" value="${cleanText}" oninput="upd(${i},this.value)" class="${item.s==2?'done':''}" ${arcFocus?'readonly':''}>${dotsHTML}</div><div class="ctrls"><span class="dots" onclick="openM(${i})">⋮</span><span class="hndl" onpointerdown="startDrag(event, ${i})">⠿</span></div>`;
             list.appendChild(li);
         });
     }
 
-    function cycleDots(idx) {
-        if(arcFocus) return;
-        let v = ['today','next','someday'][cur];
-        let item = db[v][idx];
-        const match = item.t.match(/\((\d+)\)/);
-        const goal = match ? parseInt(match[1]) : 0;
-        item.c = (item.c || 0) + 1;
-        if(item.c > goal) item.c = 0;
-        if(item.c === 0) item.s = 0; else if(item.c === goal) item.s = 2; else item.s = 1;
-        save(); render();
-    }
-
-    function updateTodayButton() {
-        const container = document.getElementById('btn-container');
-        if(!container || cur !== 0 || arcFocus) { if(container) container.innerHTML = ""; return; }
-        const hasTasks = db.today.some(x => x.t.trim() !== "");
-        container.innerHTML = `<div style="padding:20px; text-align:center;"><button class="fin-btn" onclick="${hasTasks?'fin()':'viewLastArc()'}">${hasTasks?'Commit Day':'Review Yesterday'}</button></div>`;
-    }
-
-    function upd(i,v) { 
-        if(arcFocus) return; 
-        let key = ['today','next','someday'][cur];
-        const tagMatch = db[key][i].t.match(/\(\d+\)/);
-        const tag = tagMatch ? tagMatch[0] : "";
-        db[key][i].t = tag ? `${v} ${tag}` : v;
-        save(); 
-        if(cur === 0) updateTodayButton(); 
-    }
-
-    function startDrag(e, i) { 
-        if(arcFocus) return; 
-        dragEl = e.target.closest('li'); 
-        dragEl.classList.add('dragging');
-        dragEl.setPointerCapture(e.pointerId); 
-    }
-    
-    document.addEventListener('pointermove', e => {
-        if(!dragEl) return;
-        const list = document.getElementById('list');
-        const items = [...list.querySelectorAll('li:not(.dragging)')];
-        let next = items.find(s => e.clientY <= s.getBoundingClientRect().top + s.offsetHeight/2);
-        if (next) list.insertBefore(dragEl, next);
-        else list.appendChild(dragEl);
-    });
-
-    document.addEventListener('pointerup', e => {
-        if(!dragEl) return;
-        dragEl.classList.remove('dragging');
-        let v = ['today','next','someday'][cur];
-        db[v] = [...document.querySelectorAll('#list li')].map(li => db[v][li.dataset.idx]);
-        dragEl = null; save(); render();
-    });
-
-    function tgl(i) { 
-        if(arcFocus) return; 
-        let v = ['today','next','someday'][cur];
-        let item = db[v][i];
-        item.s = (item.s + 1) % 4; 
-        const tagMatch = item.t.match(/\((\d+)\)/);
-        if(tagMatch) {
-            const goal = parseInt(tagMatch[1]);
-            if(item.s === 2) item.c = goal;
-            else if(item.s === 0) item.c = 0;
-            else if(item.s === 1 && (item.c === 0 || item.c === goal)) item.c = 1;
-        }
-        save(); render(); 
-    }
-
+    function cycleDots(idx) { if(arcFocus) return; let v = ['today','next','someday'][cur]; let item = db[v][idx]; const match = item.t.match(/\((\d+)\)/); const goal = match ? parseInt(match[1]) : 0; item.c = (item.c || 0) + 1; if(item.c > goal) item.c = 0; if(item.c === 0) item.s = 0; else if(item.c === goal) item.s = 2; else item.s = 1; save(); render(); }
+    function updateTodayButton() { const container = document.getElementById('btn-container'); if(!container || cur !== 0 || arcFocus) { if(container) container.innerHTML = ""; return; } const hasTasks = db.today.some(x => x.t.trim() !== ""); container.innerHTML = `<div style="padding:20px; text-align:center;"><button class="fin-btn" onclick="${hasTasks?'fin()':'viewLastArc()'}">${hasTasks?'Commit Day':'Review Yesterday'}</button></div>`; }
+    function upd(i,v) { if(arcFocus) return; let key = ['today','next','someday'][cur]; const tagMatch = db[key][i].t.match(/\(\d+\)/); const tag = tagMatch ? tagMatch[0] : ""; db[key][i].t = tag ? `${v} ${tag}` : v; save(); if(cur === 0) updateTodayButton(); }
+    function startDrag(e, i) { if(arcFocus) return; dragEl = e.target.closest('li'); dragEl.classList.add('dragging'); dragEl.setPointerCapture(e.pointerId); }
+    document.addEventListener('pointermove', e => { if(!dragEl) return; const list = document.getElementById('list'); const items = [...list.querySelectorAll('li:not(.dragging)')]; let next = items.find(s => e.clientY <= s.getBoundingClientRect().top + s.offsetHeight/2); if (next) list.insertBefore(dragEl, next); else list.appendChild(dragEl); });
+    document.addEventListener('pointerup', e => { if(!dragEl) return; dragEl.classList.remove('dragging'); let v = ['today','next','someday'][cur]; db[v] = [...document.querySelectorAll('#list li')].map(li => db[v][li.dataset.idx]); dragEl = null; save(); render(); });
+    function tgl(i) { if(arcFocus) return; let v = ['today','next','someday'][cur]; let item = db[v][i]; item.s = (item.s + 1) % 4; const tagMatch = item.t.match(/\((\d+)\)/); if(tagMatch) { const goal = parseInt(tagMatch[1]); if(item.s === 2) item.c = goal; else if(item.s === 0) item.c = 0; else if(item.s === 1 && (item.c === 0 || item.c === goal)) item.c = 1; } save(); render(); }
     function viewArc(i) { arcFocus = { tasks: db.archive[i].tasks, d: db.archive[i].d, idx: i }; render(); }
     function delArch(e, i) { e.stopPropagation(); if(confirm("Delete this entry from the ledger forever?")) { db.archive.splice(i, 1); save(); render(); } }
     function viewLastArc() { if(db.archive.length > 0) viewArc(db.archive.length - 1); else alert("No historical data found."); }
-
-    function openM(i) { 
-        sel=i; const container = document.getElementById('m-options-container'); container.innerHTML = '';
-        const addOption = (label, action) => {
-            const div = document.createElement('div'); div.className = 'm-item'; div.innerText = label; div.onclick = () => mAct(action);
-            container.appendChild(div);
-        };
-        if(arcFocus) {
-            addOption("Restore to Today", "today"); addOption("Move to Next", "next");
-        } else {
-            const v = ['today', 'next', 'someday'][cur];
-            if(v !== 'today') addOption("Move to Today", "today");
-            if(v !== 'next') addOption("Move to Next", "next");
-            if(v !== 'someday') addOption("Move to Someday", "someday");
-            addOption("Remove Entry", "del");
-        }
-        document.getElementById('menu').classList.add('open'); document.getElementById('ov').style.display='block'; 
-    }
-
-    function mAct(a) { 
-        let src = arcFocus ? arcFocus.tasks : db[['today', 'next', 'someday'][cur]];
-        if (a === 'del') { src[sel] = {t:"", s:0, c:0}; } 
-        else {
-            let ti = db[a].findIndex(x => x.t.trim() === "");
-            let newTask = JSON.parse(JSON.stringify(src[sel]));
-            if(ti !== -1) db[a][ti] = newTask; else db[a].push(newTask);
-            if(arcFocus) { src[sel].s = 3; } else { src[sel] = {t:"", s:0, c:0}; }
-        }
-        save(); render(); closeAll();
-    }
-
-    function fin() { 
-        if(!confirm("Commit today to the Ledger? Unfinished tasks will migrate forward.")) return; 
-        const todayStr = getShortDate(new Date());
-        db.archive.push({d: todayStr, tasks: JSON.parse(JSON.stringify(db.today))}); 
-        const migrated = db.today.filter(t => (t.s === 1 || t.s === 3) && t.t.trim() !== "");
-        db.today = Array(10).fill().map(()=>({t:"", s:0, c:0}));
-        migrated.forEach((t, i) => { if(i < 10) db.today[i] = JSON.parse(JSON.stringify(t)); });
-        save(); render(); 
-    }
-
-    function undoFin(idx) {
-        if(!confirm("Restore tasks from this ledger entry?")) return;
-        let card = db.archive[idx];
-        card.tasks.forEach(task => {
-            if(task.t.trim() !== "") {
-                let emptyIdx = db.today.findIndex(t => t.t.trim() === "");
-                if (emptyIdx !== -1) db.today[emptyIdx] = JSON.parse(JSON.stringify(task));
-                else db.today.push(JSON.parse(JSON.stringify(task)));
-            }
-        });
-        save(); cur = 0; arcFocus = null; render();
-    }
-
+    function openM(i) { sel=i; const container = document.getElementById('m-options-container'); container.innerHTML = ''; const addOption = (label, action) => { const div = document.createElement('div'); div.className = 'm-item'; div.innerText = label; div.onclick = () => mAct(action); container.appendChild(div); }; if(arcFocus) { addOption("Restore to Today", "today"); addOption("Move to Next", "next"); } else { const v = ['today', 'next', 'someday'][cur]; if(v !== 'today') addOption("Move to Today", "today"); if(v !== 'next') addOption("Move to Next", "next"); if(v !== 'someday') addOption("Move to Someday", "someday"); addOption("Remove Entry", "del"); } document.getElementById('menu').classList.add('open'); document.getElementById('ov').style.display='block'; }
+    function mAct(a) { let src = arcFocus ? arcFocus.tasks : db[['today', 'next', 'someday'][cur]]; if (a === 'del') { src[sel] = {t:"", s:0, c:0}; } else { let ti = db[a].findIndex(x => x.t.trim() === ""); let newTask = JSON.parse(JSON.stringify(src[sel])); if(ti !== -1) db[a][ti] = newTask; else db[a].push(newTask); if(arcFocus) { src[sel].s = 3; } else { src[sel] = {t:"", s:0, c:0}; } } save(); render(); closeAll(); }
+    function fin() { if(!confirm("Commit today to the Ledger? Unfinished tasks will migrate forward.")) return; const todayStr = getShortDate(new Date()); db.archive.push({d: todayStr, tasks: JSON.parse(JSON.stringify(db.today))}); const migrated = db.today.filter(t => (t.s === 1 || t.s === 3) && t.t.trim() !== ""); db.today = Array(10).fill().map(()=>({t:"", s:0, c:0})); migrated.forEach((t, i) => { if(i < 10) db.today[i] = JSON.parse(JSON.stringify(t)); }); save(); render(); }
+    function undoFin(idx) { if(!confirm("Restore tasks from this ledger entry?")) return; let card = db.archive[idx]; card.tasks.forEach(task => { if(task.t.trim() !== "") { let emptyIdx = db.today.findIndex(t => t.t.trim() === ""); if (emptyIdx !== -1) db.today[emptyIdx] = JSON.parse(JSON.stringify(task)); else db.today.push(JSON.parse(JSON.stringify(task))); } }); save(); cur = 0; arcFocus = null; render(); }
     function openSettings() { document.getElementById('settings-menu').classList.add('open'); document.getElementById('ov').style.display='block'; }
     function closeAll() { document.getElementById('menu').classList.remove('open'); document.getElementById('settings-menu').classList.remove('open'); document.getElementById('ov').style.display='none'; }
     function exportData() { const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db)); a.download = "ledger_backup.json"; a.click(); }
-    function exportMarkdown() {
-        let md = "# The Ledger\n\n";
-        db.archive.slice().reverse().forEach(day => {
-            md += `## ${day.d}\n`;
-            day.tasks.filter(t=>t.t.trim()!=="").forEach(t => {
-                let p = t.s===2 ? "[x]" : (t.s===3 ? "[>]" : "[ ]");
-                md += `${p} ${t.t}\n`;
-            });
-            md += "\n";
-        });
-        const a = document.createElement('a'); a.href = "data:text/markdown;charset=utf-8," + encodeURIComponent(md); a.download = "ledger_history.md"; a.click();
-    }
+    function exportMarkdown() { let md = "# The Ledger\n\n"; db.archive.slice().reverse().forEach(day => { md += `## ${day.d}\n`; day.tasks.filter(t=>t.t.trim()!=="").forEach(t => { let p = t.s===2 ? "[x]" : (t.s===3 ? "[>]" : "[ ]"); md += `${p} ${t.t}\n`; }); md += "\n"; }); const a = document.createElement('a'); a.href = "data:text/markdown;charset=utf-8," + encodeURIComponent(md); a.download = "ledger_history.md"; a.click(); }
     function importData() { document.getElementById('fileInput').click(); }
     document.getElementById('fileInput').onchange = e => { const reader = new FileReader(); reader.onload = ev => { db = JSON.parse(ev.target.result); save(); render(); closeAll(); }; reader.readAsText(e.target.files[0]); };
-
-    function jump(dir) {
-        let el = document.getElementById('card');
-        el.style.transform = `translateX(${-dir * 100}%)`;
-        setTimeout(() => {
-            cur = (cur + dir + 4) % 4; arcFocus = null;
-            el.style.transition = 'none';
-            el.style.transform = `translateX(${dir * 100}%)`;
-            render();
-            setTimeout(() => {
-                el.style.transition = 'transform 0.25s cubic-bezier(0.2, 1, 0.3, 1)';
-                el.style.transform = 'translateX(0)';
-            }, 15);
-        }, 200);
-    }
-
+    function jump(dir) { let el = document.getElementById('card'); el.style.transform = `translateX(${-dir * 100}%)`; setTimeout(() => { cur = (cur + dir + 4) % 4; arcFocus = null; el.style.transition = 'none'; el.style.transform = `translateX(${dir * 100}%)`; render(); setTimeout(() => { el.style.transition = 'transform 0.25s cubic-bezier(0.2, 1, 0.3, 1)'; el.style.transform = 'translateX(0)'; }, 15); }, 200); }
     let sX = 0;
     document.addEventListener('touchstart', e => sX = e.touches[0].clientX);
-    document.addEventListener('touchend', e => {
-        let diff = e.changedTouches[0].clientX - sX;
-        if(Math.abs(diff) > 70 && !dragEl) { 
-            if(arcFocus){ arcFocus=null; render(); return; } 
-            jump(diff > 0 ? -1 : 1); 
-        }
-    });
-
+    document.addEventListener('touchend', e => { let diff = e.changedTouches[0].clientX - sX; if(Math.abs(diff) > 70 && !dragEl) { if(arcFocus){ arcFocus=null; render(); return; } jump(diff > 0 ? -1 : 1); } });
     checkDayReset();
     render();
 </script>
