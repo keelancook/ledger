@@ -64,7 +64,6 @@
         }
         .done { text-decoration: line-through; color: rgba(0,0,0,0.45); opacity: 0.7; }
 
-        /* Compact Grid Dot Styling */
         .tally-hit-zone { 
             display: grid; 
             grid-template-rows: repeat(2, 1fr);
@@ -76,14 +75,8 @@
             z-index: 5;
             align-items: center;
         }
-        .dot { 
-            width: 5px; height: 5px; border-radius: 50%; 
-            border: 1px solid rgba(0,0,0,0.2); transition: all 0.1s;
-        }
-        .dot.active { 
-            background: #000; border-color: #000; 
-            transform: scale(1.1);
-        }
+        .dot { width: 5px; height: 5px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.2); transition: all 0.1s; }
+        .dot.active { background: #000; border-color: #000; transform: scale(1.1); }
 
         .ctrls { display: flex; align-items: center; gap: 8px; color: rgba(0,0,0,0.3); z-index: 2; flex-shrink: 0; font-family: sans-serif; }
         .dots, .hndl { padding: 5px; font-size: 18px; cursor: pointer; user-select: none; }
@@ -99,14 +92,10 @@
         .arch-item { padding: 12px 20px; border-bottom: 1px solid var(--rule); display: flex; align-items: center; min-height: 64px; }
         .arch-date { flex: 1; font-size: 28px; cursor: pointer; padding: 5px 0; }
         .arch-ctrls { display: flex; align-items: center; gap: 4px; height: 44px; }
-        .arch-btn { 
-            width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; 
-            cursor: pointer; user-select: none; border-radius: 50%; border: none; background: transparent;
-        }
+        .arch-btn { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; user-select: none; border-radius: 50%; border: none; background: transparent; }
         .arch-undo { color: #000; opacity: 0.6; }
         .arch-del { color: var(--priority); }
         .arch-btn svg { width: 22px; height: 22px; stroke: currentColor; fill: none; display: block; }
-        .arch-btn:active { background: rgba(0,0,0,0.08); }
         
         .settings-trigger { width: 24px; height: 24px; fill: rgba(0,0,0,0.6); margin-top: 4px; cursor: pointer; }
     </style>
@@ -154,10 +143,19 @@
         localStorage.setItem(STORAGE_KEY+'_lastDate', db.lastActiveDate);
     }
 
+    // CRITICAL: Ensure the previous day is archived before changing the active date
     function checkDayReset() {
         const todayStr = getShortDate(new Date());
         if (db.lastActiveDate !== todayStr) { 
-            fin(true); 
+            // Archive the previous day's content as it was
+            const dayToArchive = db.lastActiveDate;
+            db.archive.push({ d: dayToArchive, tasks: JSON.parse(JSON.stringify(db.today)) });
+            
+            // Clean up today's card but MIGRATE unfinished tasks
+            const migrated = db.today.filter(t => (t.s === 1 || t.s === 3) && t.t.trim() !== "");
+            db.today = Array(10).fill().map(()=>({t:"", s:0, c:0}));
+            migrated.forEach((t, i) => { if(i < 10) db.today[i] = JSON.parse(JSON.stringify(t)); });
+            
             db.lastActiveDate = todayStr;
             save();
         }
@@ -175,17 +173,15 @@
             el.innerHTML = `<div class="hdr"><b>Archive</b>${gear}</div><div id="arch-list" style="overflow-y:auto; height:calc(100% - 100px)"></div>`;
             db.archive.slice().reverse().forEach((e, i) => {
                 let realIdx = db.archive.length - 1 - i;
-                let isToday = e.d === todayShort;
                 let r = document.createElement('div'); r.className='arch-item';
                 r.innerHTML = `
                     <div class="arch-date" onclick="viewArc(${realIdx})">${e.d}</div>
                     <div class="arch-ctrls">
-                        ${isToday ? `
                         <div class="arch-btn arch-undo" onclick="undoFin(${realIdx})">
-                            <svg viewBox="0 0 24 24" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
-                        </div>` : ''}
+                            <svg viewBox="0 0 24 24" stroke="black" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+                        </div>
                         <div class="arch-btn arch-del" onclick="delArch(event, ${realIdx})">
-                            <svg viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                            <svg viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke="red"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                         </div>
                     </div>`;
                 document.getElementById('arch-list').appendChild(r);
@@ -210,7 +206,6 @@
             if (item.s === 2) btnClass += " s-done";
             let icon = item.s === 3 ? arrowSVG : '';
             
-            // Syntax Detection Updated to ()
             const tagMatch = item.t.match(/\((\d+)\)/);
             const goal = tagMatch ? parseInt(tagMatch[1]) : 0;
             const cleanText = item.t.replace(/\(\d+\)/g, '').trim();
@@ -227,7 +222,7 @@
 
             li.innerHTML = `<div class="${btnClass}" onclick="tgl(${i})">${icon}</div>
                             <div class="inp-wrap">
-                                <input type="text" value="${cleanText}" oninput="upd(${i},this.value)" class="${item.s==2?'done':''}">
+                                <input type="text" value="${cleanText}" oninput="upd(${i},this.value)" class="${item.s==2?'done':''}" ${arcFocus?'readonly':''}>
                                 ${dotsHTML}
                             </div>
                             <div class="ctrls"><span class="dots" onclick="openM(${i})">⋮</span><span class="hndl" onpointerdown="startDrag(event, ${i})">⠿</span></div>`;
@@ -241,19 +236,9 @@
         let item = db[v][idx];
         const match = item.t.match(/\((\d+)\)/);
         const goal = match ? parseInt(match[1]) : 0;
-        
         item.c = (item.c || 0) + 1;
         if(item.c > goal) item.c = 0;
-        
-        // Auto-status updates
-        if(item.c === 0) {
-            item.s = 0; 
-        } else if(item.c === goal) {
-            item.s = 2; 
-        } else {
-            item.s = 1; 
-        }
-        
+        if(item.c === 0) item.s = 0; else if(item.c === goal) item.s = 2; else item.s = 1;
         save(); render();
     }
 
@@ -293,17 +278,16 @@
     document.addEventListener('pointerup', e => {
         if(!dragEl) return;
         dragEl.classList.remove('dragging');
-        let v = ['today','next','someday','archive'][cur];
+        let v = ['today','next','someday'][cur];
         db[v] = [...document.querySelectorAll('#list li')].map(li => db[v][li.dataset.idx]);
         dragEl = null; save(); render();
     });
 
     function tgl(i) { 
         if(arcFocus) return; 
-        let v = ['today','next','someday','archive'][cur];
+        let v = ['today','next','someday'][cur];
         let item = db[v][i];
         item.s = (item.s + 1) % 4; 
-        
         const tagMatch = item.t.match(/\((\d+)\)/);
         if(tagMatch) {
             const goal = parseInt(tagMatch[1]);
@@ -311,13 +295,14 @@
             else if(item.s === 0) item.c = 0;
             else if(item.s === 1 && (item.c === 0 || item.c === goal)) item.c = 1;
         }
-        
         save(); render(); 
     }
 
-    function viewArc(i) { arcFocus = { tasks: db.archive[i].tasks, d: db.archive[i].d, idx: i }; render(); }
-    function delArch(e, i) { e.stopPropagation(); if(confirm("Delete card?")) { db.archive.splice(i, 1); save(); render(); } }
-    function viewLastArc() { if(db.archive.length > 0) viewArc(db.archive.length - 1); else alert("No history"); }
+    function viewArc(i) { arcFocus = { tasks: db.archive[i].tasks, d: db.archive[i].d, idx: realIdx(i) }; render(); }
+    function realIdx(i) { return i; } 
+
+    function delArch(e, i) { e.stopPropagation(); if(confirm("Delete this historical card forever?")) { db.archive.splice(i, 1); save(); render(); } }
+    function viewLastArc() { if(db.archive.length > 0) viewArc(db.archive.length - 1); else alert("No history found."); }
 
     function openM(i) { 
         sel=i; const container = document.getElementById('m-options-container'); container.innerHTML = '';
@@ -344,65 +329,49 @@
             let ti = db[a].findIndex(x => x.t.trim() === "");
             let newTask = JSON.parse(JSON.stringify(src[sel]));
             if(ti !== -1) db[a][ti] = newTask; else db[a].push(newTask);
-            if(arcFocus) src[sel].s = 3; else src[sel] = {t:"", s:0, c:0};
+            if(arcFocus) { src[sel].s = 3; } else { src[sel] = {t:"", s:0, c:0}; }
         }
         save(); render(); closeAll();
     }
 
-    function fin(isAuto = false) { 
-        if(!isAuto && !confirm("Archive today?")) return; 
+    function fin() { 
+        if(!confirm("Archive today's card? Unfinished tasks will move to the new Today card.")) return; 
         const todayStr = getShortDate(new Date());
         db.archive.push({d: todayStr, tasks: JSON.parse(JSON.stringify(db.today))}); 
         const migrated = db.today.filter(t => (t.s === 1 || t.s === 3) && t.t.trim() !== "");
         db.today = Array(10).fill().map(()=>({t:"", s:0, c:0}));
         migrated.forEach((t, i) => { if(i < 10) db.today[i] = JSON.parse(JSON.stringify(t)); });
-        db.lastActiveDate = todayStr;
-        save(); if(!isAuto) render(); 
+        save(); render(); 
     }
 
     function undoFin(idx) {
-        if(!confirm("Restore this card to Today? (Tasks will merge with your current Today card)")) return;
-        let archivedCard = db.archive.splice(idx, 1)[0];
-        let archivedTasks = archivedCard.tasks.filter(t => t.t.trim() !== "");
-        archivedTasks.forEach(task => {
-            let emptyIdx = db.today.findIndex(t => t.t.trim() === "");
-            if (emptyIdx !== -1) {
-                db.today[emptyIdx] = task;
-            } else {
-                db.today.push(task);
+        if(!confirm("Restore tasks from this card? Items will merge into your current Today list.")) return;
+        let card = db.archive[idx];
+        card.tasks.forEach(task => {
+            if(task.t.trim() !== "") {
+                let emptyIdx = db.today.findIndex(t => t.t.trim() === "");
+                if (emptyIdx !== -1) db.today[emptyIdx] = JSON.parse(JSON.stringify(task));
+                else db.today.push(JSON.parse(JSON.stringify(task)));
             }
         });
-        arcFocus = null;
-        cur = 0; 
-        save(); render();
+        save(); cur = 0; arcFocus = null; render();
     }
 
     function openSettings() { document.getElementById('settings-menu').classList.add('open'); document.getElementById('ov').style.display='block'; }
     function closeAll() { document.getElementById('menu').classList.remove('open'); document.getElementById('settings-menu').classList.remove('open'); document.getElementById('ov').style.display='none'; }
     function exportData() { const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db)); a.download = "analog_backup.json"; a.click(); }
-    
     function exportMarkdown() {
-        const now = new Date();
-        const exportDate = `${now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} at ${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
-        let md = "---\ntitle: Analog Digital OS Archive\n";
-        md += `export_date: "${exportDate}"\n---\n\n# Archive History\n\n`;
+        let md = "# Analog Archive\n\n";
         db.archive.slice().reverse().forEach(day => {
             md += `## ${day.d}\n`;
-            day.tasks.forEach(t => {
-                if(t.t.trim() !== "") {
-                    let prefix = "[ ]";
-                    if(t.s === 1) prefix = "[/]"; 
-                    if(t.s === 2) prefix = "[x]"; 
-                    if(t.s === 3) prefix = "[>]"; 
-                    let progress = t.c > 0 ? ` (Progress: ${t.c})` : '';
-                    md += `${prefix} ${t.t}${progress}\n`;
-                }
+            day.tasks.filter(t=>t.t.trim()!=="").forEach(t => {
+                let p = t.s===2 ? "[x]" : (t.s===3 ? "[>]" : "[ ]");
+                md += `${p} ${t.t}\n`;
             });
             md += "\n";
         });
         const a = document.createElement('a'); a.href = "data:text/markdown;charset=utf-8," + encodeURIComponent(md); a.download = "analog_history.md"; a.click();
     }
-
     function importData() { document.getElementById('fileInput').click(); }
     document.getElementById('fileInput').onchange = e => { const reader = new FileReader(); reader.onload = ev => { db = JSON.parse(ev.target.result); save(); render(); closeAll(); }; reader.readAsText(e.target.files[0]); };
 
