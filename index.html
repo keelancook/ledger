@@ -78,15 +78,12 @@
 
     function getShortDate(dObj) { return `${dObj.toLocaleDateString('en-US', { month: 'short' })} ${dObj.getDate()}, ${dObj.getFullYear()}`; }
 
-    // DATA MIGRATION BRIDGE
     function migrate() {
         const keys = ['_t', '_n', '_s', '_a', '_lastDate'];
         keys.forEach(k => {
             const oldData = localStorage.getItem(OLD_KEY + k);
             const newData = localStorage.getItem(STORAGE_KEY + k);
-            if (oldData && !newData) {
-                localStorage.setItem(STORAGE_KEY + k, oldData);
-            }
+            if (oldData && !newData) localStorage.setItem(STORAGE_KEY + k, oldData);
         });
     }
     migrate();
@@ -129,7 +126,7 @@
 
         if(cur === 3 && !arcFocus) {
             const gear = `<svg class="settings-trigger" onclick="openSettings()" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>`;
-            el.innerHTML = `<div class="hdr"><b>The Ledger</b>${gear}</div><div id="ledger-list" style="overflow-y:auto; height:calc(100% - 100px)"></div>`;
+            el.innerHTML = `<div class="hdr"><b>Ledger</b>${gear}</div><div id="ledger-list" style="overflow-y:auto; height:calc(100% - 100px)"></div>`;
             db.archive.slice().reverse().forEach((e, i) => {
                 let realIdx = db.archive.length - 1 - i;
                 let r = document.createElement('div'); r.className='ledger-item';
@@ -171,23 +168,30 @@
     }
 
     function cycleDots(idx) { if(arcFocus) return; let v = ['today','next','someday'][cur]; let item = db[v][idx]; const match = item.t.match(/\((\d+)\)/); const goal = match ? parseInt(match[1]) : 0; item.c = (item.c || 0) + 1; if(item.c > goal) item.c = 0; if(item.c === 0) item.s = 0; else if(item.c === goal) item.s = 2; else item.s = 1; save(); render(); }
-    function updateTodayButton() { const container = document.getElementById('btn-container'); if(!container || cur !== 0 || arcFocus) { if(container) container.innerHTML = ""; return; } const hasTasks = db.today.some(x => x.t.trim() !== ""); container.innerHTML = `<div style="padding:20px; text-align:center;"><button class="fin-btn" onclick="${hasTasks?'fin()':'viewLastArc()'}">${hasTasks?'Commit Day':'Review Yesterday'}</button></div>`; }
+    
+    function updateTodayButton() { 
+        const container = document.getElementById('btn-container'); 
+        if(!container || cur !== 0 || arcFocus) { if(container) container.innerHTML = ""; return; } 
+        const hasTasks = db.today.some(x => x.t.trim() !== ""); 
+        container.innerHTML = `<div style="padding:20px; text-align:center;"><button class="fin-btn" onclick="${hasTasks?'fin()':'viewLastArc()'}">${hasTasks?'Commit Day':'Review Ledger'}</button></div>`; 
+    }
+
     function upd(i,v) { if(arcFocus) return; let key = ['today','next','someday'][cur]; const tagMatch = db[key][i].t.match(/\(\d+\)/); const tag = tagMatch ? tagMatch[0] : ""; db[key][i].t = tag ? `${v} ${tag}` : v; save(); if(cur === 0) updateTodayButton(); }
     function startDrag(e, i) { if(arcFocus) return; dragEl = e.target.closest('li'); dragEl.classList.add('dragging'); dragEl.setPointerCapture(e.pointerId); }
     document.addEventListener('pointermove', e => { if(!dragEl) return; const list = document.getElementById('list'); const items = [...list.querySelectorAll('li:not(.dragging)')]; let next = items.find(s => e.clientY <= s.getBoundingClientRect().top + s.offsetHeight/2); if (next) list.insertBefore(dragEl, next); else list.appendChild(dragEl); });
     document.addEventListener('pointerup', e => { if(!dragEl) return; dragEl.classList.remove('dragging'); let v = ['today','next','someday'][cur]; db[v] = [...document.querySelectorAll('#list li')].map(li => db[v][li.dataset.idx]); dragEl = null; save(); render(); });
     function tgl(i) { if(arcFocus) return; let v = ['today','next','someday'][cur]; let item = db[v][i]; item.s = (item.s + 1) % 4; const tagMatch = item.t.match(/\((\d+)\)/); if(tagMatch) { const goal = parseInt(tagMatch[1]); if(item.s === 2) item.c = goal; else if(item.s === 0) item.c = 0; else if(item.s === 1 && (item.c === 0 || item.c === goal)) item.c = 1; } save(); render(); }
     function viewArc(i) { arcFocus = { tasks: db.archive[i].tasks, d: db.archive[i].d, idx: i }; render(); }
-    function delArch(e, i) { e.stopPropagation(); if(confirm("Delete this entry from the ledger forever?")) { db.archive.splice(i, 1); save(); render(); } }
+    function delArch(e, i) { e.stopPropagation(); if(confirm("Delete this entry from the Ledger forever?")) { db.archive.splice(i, 1); save(); render(); } }
     function viewLastArc() { if(db.archive.length > 0) viewArc(db.archive.length - 1); else alert("No historical data found."); }
     function openM(i) { sel=i; const container = document.getElementById('m-options-container'); container.innerHTML = ''; const addOption = (label, action) => { const div = document.createElement('div'); div.className = 'm-item'; div.innerText = label; div.onclick = () => mAct(action); container.appendChild(div); }; if(arcFocus) { addOption("Restore to Today", "today"); addOption("Move to Next", "next"); } else { const v = ['today', 'next', 'someday'][cur]; if(v !== 'today') addOption("Move to Today", "today"); if(v !== 'next') addOption("Move to Next", "next"); if(v !== 'someday') addOption("Move to Someday", "someday"); addOption("Remove Entry", "del"); } document.getElementById('menu').classList.add('open'); document.getElementById('ov').style.display='block'; }
     function mAct(a) { let src = arcFocus ? arcFocus.tasks : db[['today', 'next', 'someday'][cur]]; if (a === 'del') { src[sel] = {t:"", s:0, c:0}; } else { let ti = db[a].findIndex(x => x.t.trim() === ""); let newTask = JSON.parse(JSON.stringify(src[sel])); if(ti !== -1) db[a][ti] = newTask; else db[a].push(newTask); if(arcFocus) { src[sel].s = 3; } else { src[sel] = {t:"", s:0, c:0}; } } save(); render(); closeAll(); }
     function fin() { if(!confirm("Commit today to the Ledger? Unfinished tasks will migrate forward.")) return; const todayStr = getShortDate(new Date()); db.archive.push({d: todayStr, tasks: JSON.parse(JSON.stringify(db.today))}); const migrated = db.today.filter(t => (t.s === 1 || t.s === 3) && t.t.trim() !== ""); db.today = Array(10).fill().map(()=>({t:"", s:0, c:0})); migrated.forEach((t, i) => { if(i < 10) db.today[i] = JSON.parse(JSON.stringify(t)); }); save(); render(); }
-    function undoFin(idx) { if(!confirm("Restore tasks from this ledger entry?")) return; let card = db.archive[idx]; card.tasks.forEach(task => { if(task.t.trim() !== "") { let emptyIdx = db.today.findIndex(t => t.t.trim() === ""); if (emptyIdx !== -1) db.today[emptyIdx] = JSON.parse(JSON.stringify(task)); else db.today.push(JSON.parse(JSON.stringify(task))); } }); save(); cur = 0; arcFocus = null; render(); }
+    function undoFin(idx) { if(!confirm("Restore tasks from this Ledger entry?")) return; let card = db.archive[idx]; card.tasks.forEach(task => { if(task.t.trim() !== "") { let emptyIdx = db.today.findIndex(t => t.t.trim() === ""); if (emptyIdx !== -1) db.today[emptyIdx] = JSON.parse(JSON.stringify(task)); else db.today.push(JSON.parse(JSON.stringify(task))); } }); save(); cur = 0; arcFocus = null; render(); }
     function openSettings() { document.getElementById('settings-menu').classList.add('open'); document.getElementById('ov').style.display='block'; }
     function closeAll() { document.getElementById('menu').classList.remove('open'); document.getElementById('settings-menu').classList.remove('open'); document.getElementById('ov').style.display='none'; }
     function exportData() { const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db)); a.download = "ledger_backup.json"; a.click(); }
-    function exportMarkdown() { let md = "# The Ledger\n\n"; db.archive.slice().reverse().forEach(day => { md += `## ${day.d}\n`; day.tasks.filter(t=>t.t.trim()!=="").forEach(t => { let p = t.s===2 ? "[x]" : (t.s===3 ? "[>]" : "[ ]"); md += `${p} ${t.t}\n`; }); md += "\n"; }); const a = document.createElement('a'); a.href = "data:text/markdown;charset=utf-8," + encodeURIComponent(md); a.download = "ledger_history.md"; a.click(); }
+    function exportMarkdown() { let md = "# Ledger\n\n"; db.archive.slice().reverse().forEach(day => { md += `## ${day.d}\n`; day.tasks.filter(t=>t.t.trim()!=="").forEach(t => { let p = t.s===2 ? "[x]" : (t.s===3 ? "[>]" : "[ ]"); md += `${p} ${t.t}\n`; }); md += "\n"; }); const a = document.createElement('a'); a.href = "data:text/markdown;charset=utf-8," + encodeURIComponent(md); a.download = "ledger_history.md"; a.click(); }
     function importData() { document.getElementById('fileInput').click(); }
     document.getElementById('fileInput').onchange = e => { const reader = new FileReader(); reader.onload = ev => { db = JSON.parse(ev.target.result); save(); render(); closeAll(); }; reader.readAsText(e.target.files[0]); };
     function jump(dir) { let el = document.getElementById('card'); el.style.transform = `translateX(${-dir * 100}%)`; setTimeout(() => { cur = (cur + dir + 4) % 4; arcFocus = null; el.style.transition = 'none'; el.style.transform = `translateX(${dir * 100}%)`; render(); setTimeout(() => { el.style.transition = 'transform 0.25s cubic-bezier(0.2, 1, 0.3, 1)'; el.style.transform = 'translateX(0)'; }, 15); }, 200); }
