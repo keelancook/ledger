@@ -558,12 +558,28 @@ async function doPull() {
    Fires only when Supabase detects a change
    to this user's rows — zero idle disk IO.
 ═══════════════════════════════════════ */
+let realtimePullTimer = null;
+
+function scheduleRealtimePull() {
+    // Skip if this device made changes recently — our push is still in flight
+    if (Date.now() - lastLocalChange < 10000) return;
+    // Skip if user is actively typing
+    if (document.activeElement?.tagName === 'INPUT') return;
+    // Debounce — if multiple changes arrive at once, only pull once
+    clearTimeout(realtimePullTimer);
+    realtimePullTimer = setTimeout(() => {
+        // Check again after the delay in case user started typing
+        if (document.activeElement?.tagName === 'INPUT') return;
+        if (Date.now() - lastLocalChange < 10000) return;
+        doPull().then(changed => { if (changed) render(); }).catch(() => {});
+    }, 1500);
+}
+
 function startRealtime() {
     const client = getSupaClient();
     if (!client || !supaSession) return;
     const uid = getUserId(); if (!uid) return;
 
-    // Clean up any existing channel
     if (realtimeChannel) { client.removeChannel(realtimeChannel); realtimeChannel = null; }
 
     realtimeChannel = client.channel('ledger-sync')
@@ -572,30 +588,23 @@ function startRealtime() {
             schema: 'public',
             table: 'ledger_tasks_v2',
             filter: `user_id=eq.${uid}`
-        }, () => {
-            // A change arrived from another device
-            // Only apply if this device hasn't made local changes in the last 10s
-            if (Date.now() - lastLocalChange < 10000) return;
-            doPull().then(changed => { if (changed) render(); }).catch(() => {});
-        })
+        }, () => scheduleRealtimePull())
         .on('postgres_changes', {
             event: '*',
             schema: 'public',
             table: 'ledger_archive',
             filter: `user_id=eq.${uid}`
-        }, () => {
-            if (Date.now() - lastLocalChange < 10000) return;
-            doPull().then(changed => { if (changed) render(); }).catch(() => {});
-        })
+        }, () => scheduleRealtimePull())
         .subscribe(status => {
             if (status === 'SUBSCRIBED') {
                 setSyncStatus('synced', 'Synced');
             }
             if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-                console.warn('Realtime issue:', status);
                 setSyncStatus('error', 'Realtime disconnected — ' + status);
-                // Fall back to a single pull on error
-                doPull().then(changed => { if (changed) render(); }).catch(() => {});
+                // Wait a moment then try a single pull as fallback
+                setTimeout(() => {
+                    doPull().then(changed => { if (changed) render(); }).catch(() => {});
+                }, 3000);
             }
         });
 }
