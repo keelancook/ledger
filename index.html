@@ -96,6 +96,21 @@
         #sync-error-panel-close:hover { color: #fff; }
 
         /* ── Auth modal ── */
+        #history-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; }
+        #history-modal.visible { display: flex; }
+        #history-box { background: var(--paper-ledger); border-radius: 8px; padding: 28px 28px 20px; width: 380px; max-width: 92vw; max-height: 80vh; display: flex; flex-direction: column; font-family: 'Cormorant Garamond', serif; }
+        #history-header { display: flex; align-items: center; justify-content: space-between; }
+        #history-header h2 { margin: 0; font-size: 22px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; color: #000; }
+        #history-close { cursor: pointer; font-size: 20px; color: rgba(0,0,0,0.4); width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
+        #history-close:hover { color: #000; }
+        #history-sub { margin: 6px 0 18px; font-size: 14px; color: rgba(0,0,0,0.5); font-style: italic; line-height: 1.4; }
+        #history-list { overflow-y: auto; flex: 1; }
+        .history-row { display: flex; align-items: center; justify-content: space-between; padding: 13px 4px; border-bottom: 1px solid rgba(0,0,0,0.1); }
+        .history-date { font-size: 19px; color: #1a1a1a; }
+        .history-time { font-size: 13px; color: rgba(0,0,0,0.4); font-style: italic; margin-left: 8px; }
+        .history-restore { font-family: 'Cormorant Garamond', serif; font-size: 13px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; padding: 6px 14px; background: #1a1a1a; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+        .history-restore:hover { background: #000; }
+        .history-empty { padding: 30px 10px; text-align: center; color: rgba(0,0,0,0.4); font-size: 16px; font-style: italic; }
         #auth-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; }
         #auth-modal.visible { display: flex; }
         #auth-box { background: var(--paper-ledger); border-radius: 8px; padding: 36px 32px; width: 320px; max-width: 90vw; font-family: 'Cormorant Garamond', serif; }
@@ -175,6 +190,16 @@
         <div id="sync-error-panel-msg"></div>
         <div id="sync-error-panel-close" onclick="document.getElementById('sync-error-panel').classList.remove('visible')">Tap and hold text above to copy · Dismiss ✕</div>
     </div>
+    <div id="history-modal">
+        <div id="history-box">
+            <div id="history-header">
+                <h2>Sync History</h2>
+                <div id="history-close" onclick="closeHistory()">✕</div>
+            </div>
+            <p id="history-sub">Restore your entire ledger to a previous day. The current state is pushed to all devices.</p>
+            <div id="history-list"></div>
+        </div>
+    </div>
     <div id="auth-modal">
         <div id="auth-box">
             <h2 id="auth-title">Sync</h2>
@@ -246,6 +271,7 @@
         <div id="sync-push-item"      class="m-item" style="display:none;" onclick="forcePush();closeAll();">Push Data to Cloud</div>
         <div id="sync-pull-item"      class="m-item" style="display:none;" onclick="forcePull();closeAll();">Pull Data from Cloud</div>
         <div id="sync-overwrite-item" class="m-item" style="display:none;color:#991b1b;" onclick="forceOverwrite();">Restore from Cloud</div>
+        <div id="sync-history-item"  class="m-item" style="display:none;" onclick="openHistory()">Sync History</div>
         <div id="sync-signout-item"   class="m-item" style="display:none;" onclick="signOut()">Sign Out of Sync</div>
         <div class="m-item" style="opacity:0.5;" onclick="closeAll()">Close</div>
     </div>
@@ -328,6 +354,9 @@ function saveLocal() {
 
 /* ─── save = saveLocal + schedule cloud push ─── */
 let lastLocalChange = 0; // timestamp of last user action on this device
+let lastSuccessfulPull = 0; // timestamp of last successful pull from cloud
+let pullInProgress = false; // true while a pull runs — blocks push during pull
+const STALE_THRESHOLD = 10 * 60 * 1000; // 10 min — older local data is untrusted
 
 function save() {
     saveLocal();
@@ -430,6 +459,23 @@ async function doPush() {
     const client = getSupaClient();
     if (!supaSession || !client) return;
     const uid = getUserId(); if (!uid) return;
+
+    // GUARD 1: never push while a pull is running
+    if (pullInProgress) { return; }
+
+    // GUARD 2: if local data is stale (we haven't pulled recently AND the user
+    // hasn't actively changed something just now), the in-memory state is
+    // untrusted. Force a pull first to reconcile with the cloud, and abort
+    // this push. This prevents a tab that slept for a long time from
+    // overwriting fresh cloud data with its stale state.
+    const sinceLastPull   = Date.now() - lastSuccessfulPull;
+    const sinceLastChange = Date.now() - lastLocalChange;
+    if (sinceLastPull > STALE_THRESHOLD && sinceLastChange > 10000) {
+        const changed = await doPull();
+        if (changed) render();
+        return; // do not push stale state
+    }
+
     setSyncStatus('syncing', 'Syncing…');
     try {
         // Tasks — one row per slot
@@ -488,6 +534,7 @@ async function doPull() {
     const client = getSupaClient();
     if (!supaSession || !client) return false;
     const uid = getUserId(); if (!uid) return false;
+    pullInProgress = true;
     setSyncStatus('syncing', 'Syncing…');
     try {
         const { data: tasks, error: tErr } = await client
@@ -503,6 +550,8 @@ async function doPull() {
         if (aErr) throw new Error(aErr.message);
 
         if (!tasks || tasks.length === 0) {
+            lastSuccessfulPull = Date.now();
+            pullInProgress = false;
             setSyncStatus('synced', 'Synced');
             return false;
         }
@@ -543,21 +592,94 @@ async function doPull() {
         }
 
         saveLocal();
+        lastSuccessfulPull = Date.now();
+        pullInProgress = false;
         setSyncStatus('synced', 'Synced');
         return true;
     } catch(e) {
         console.error('doPull:', e.message);
+        pullInProgress = false;
         setSyncStatus('error', e.message);
         return false;
     }
 }
 
 /* ═══════════════════════════════════════
-   REALTIME — subscribe to changes from
-   other devices. Replaces the 30-second poll.
-   Fires only when Supabase detects a change
-   to this user's rows — zero idle disk IO.
+   SNAPSHOTS — daily full-state backup for rollback
+   One write per day max. Near-zero IO/storage.
+   Stored in ledger_snapshots table.
 ═══════════════════════════════════════ */
+async function doSnapshot() {
+    const client = getSupaClient();
+    if (!supaSession || !client) return;
+    const uid = getUserId(); if (!uid) return;
+    const today = getShortDate(new Date());
+    // Only snapshot once per day per device session
+    const lastSnap = localStorage.getItem(STORAGE_KEY+'_last_snapshot');
+    if (lastSnap === today) return;
+    try {
+        const state = {
+            today:   db.today,
+            next:    db.next,
+            someday: db.someday,
+            archive: db.archive,
+            lastActiveDate: db.lastActiveDate
+        };
+        const { error } = await client
+            .from('ledger_snapshots')
+            .upsert([{
+                user_id: uid,
+                snapshot_date: today,
+                state: state,
+                created_at: Date.now()
+            }], { onConflict: 'user_id,snapshot_date' });
+        if (!error) {
+            localStorage.setItem(STORAGE_KEY+'_last_snapshot', today);
+        }
+    } catch(e) { /* non-critical */ }
+}
+
+async function fetchSnapshots() {
+    const client = getSupaClient();
+    if (!supaSession || !client) return [];
+    const uid = getUserId(); if (!uid) return [];
+    try {
+        const { data, error } = await client
+            .from('ledger_snapshots')
+            .select('snapshot_date,state,created_at')
+            .eq('user_id', uid)
+            .order('created_at', { ascending: false });
+        if (error) throw new Error(error.message);
+        return data || [];
+    } catch(e) {
+        showToast('Could not load history');
+        return [];
+    }
+}
+
+async function restoreSnapshot(snapshotDate) {
+    const snaps = await fetchSnapshots();
+    const snap = snaps.find(s => s.snapshot_date === snapshotDate);
+    if (!snap || !snap.state) { showToast('Snapshot not found'); return; }
+    const s = snap.state;
+    // Replace local state entirely
+    db.today   = ensureIds(s.today   || makeList());
+    db.next    = ensureIds(s.next    || makeList());
+    db.someday = ensureIds(s.someday || makeList());
+    db.archive = (s.archive || []).map(e => {
+        if (!e.key) e.key = `${e.d}::${e.u||0}`;
+        if (e.tasks) e.tasks = ensureIds(e.tasks);
+        return e;
+    });
+    if (s.lastActiveDate) db.lastActiveDate = s.lastActiveDate;
+    saveLocal();
+    // Push the restored state up so all devices get it
+    lastLocalChange = Date.now();
+    await doPush();
+    render();
+    closeAll();
+    showToast('Restored to ' + snapshotDate);
+}
 let realtimePullTimer = null;
 
 function scheduleRealtimePull() {
@@ -617,20 +739,33 @@ function stopRealtime() {
     }
 }
 
-/* ── Visibility change — pull on return after absence ── */
+/* ── Visibility change — pull on return, restart dead Realtime ── */
 let lastHiddenAt = null;
 document.addEventListener('visibilitychange', async () => {
     if (document.visibilityState === 'hidden') { lastHiddenAt = Date.now(); return; }
-    if (document.visibilityState === 'visible') {
-        // Re-check session — the JS client may have lost it if tab was suspended
-        if (!supaSession) {
-            await restoreSession();
-            return;
+    if (document.visibilityState !== 'visible') return;
+
+    // Re-check session — the JS client may have lost it if the tab was suspended
+    if (!supaSession) { await restoreSession(); return; }
+
+    const away = lastHiddenAt ? Date.now() - lastHiddenAt : 0;
+
+    // If the tab was hidden for more than 30 seconds, the Realtime WebSocket
+    // may have silently died (browser throttles background heartbeats). We
+    // cannot trust that we received events while away. So:
+    //   1. Mark local data as untrusted by resetting lastSuccessfulPull
+    //   2. Restart Realtime (the old channel is likely dead)
+    //   3. Pull fresh cloud state BEFORE any push can fire
+    // This is what prevents a long-slept tab from pushing stale data.
+    if (away > 30 * 1000) {
+        lastSuccessfulPull = 0; // force any pending push to pull-first
+        // Don't pull if the user is mid-edit
+        if (document.activeElement?.tagName !== 'INPUT' && Date.now() - lastLocalChange > 10000) {
+            const changed = await doPull();
+            if (changed) render();
         }
-        const away = lastHiddenAt ? Date.now() - lastHiddenAt : Infinity;
-        if (away > 5 * 60 * 1000 && Date.now() - lastLocalChange > 10000) {
-            doPull().then(changed => { if (changed) render(); }).catch(() => {});
-        }
+        // Restart Realtime — the previous channel likely died during sleep
+        startRealtime();
     }
 });
 
@@ -732,7 +867,7 @@ function setSyncStatus(state, label) {
 
 function updateSyncUI() {
     const authed = !!supaSession;
-    ['sync-push-item','sync-pull-item','sync-overwrite-item','sync-signout-item'].forEach(id => {
+    ['sync-push-item','sync-pull-item','sync-overwrite-item','sync-history-item','sync-signout-item'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = authed ? 'block' : 'none';
     });
@@ -814,6 +949,39 @@ function openAuthModal(synced = false) {
 }
 function closeAuthModal() { document.getElementById('auth-modal').classList.remove('visible'); }
 
+async function openHistory() {
+    closeAll();
+    const modal = document.getElementById('history-modal');
+    const list  = document.getElementById('history-list');
+    list.innerHTML = `<div class="history-empty">Loading…</div>`;
+    modal.classList.add('visible');
+    const snaps = await fetchSnapshots();
+    if (snaps.length === 0) {
+        list.innerHTML = `<div class="history-empty">No snapshots yet. They are captured once per day when the app syncs.</div>`;
+        return;
+    }
+    list.innerHTML = '';
+    snaps.forEach(snap => {
+        const row = document.createElement('div');
+        row.className = 'history-row';
+        const time = snap.created_at ? new Date(snap.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '';
+        row.innerHTML = `<div><span class="history-date">${snap.snapshot_date}</span><span class="history-time">${time}</span></div>`;
+        const btn = document.createElement('button');
+        btn.className = 'history-restore';
+        btn.textContent = 'Restore';
+        btn.onclick = () => {
+            if (confirm(`Restore your entire ledger to ${snap.snapshot_date}? Your current state will be replaced on all devices.`)) {
+                restoreSnapshot(snap.snapshot_date);
+                closeHistory();
+            }
+        };
+        row.appendChild(btn);
+        list.appendChild(row);
+    });
+}
+
+function closeHistory() { document.getElementById('history-modal').classList.remove('visible'); }
+
 async function submitMagicLink() {
     const email = document.getElementById('auth-email').value.trim();
     if (!email) return;
@@ -881,6 +1049,7 @@ async function restoreSession() {
         const changed = await doPull();
         if (changed) render();
         startRealtime();
+        doSnapshot(); // capture a daily snapshot for rollback
     }, 400);
 }
 
